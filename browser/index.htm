@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Browser Information</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <style>
+      .grid {
+        display: grid;
+        gap: 1rem;
+      }
+      @media (min-width: 900px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      table {
+        font-size: 0.9rem;
+      }
+      td {
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Browser Information</h1>
+      <p>
+        This page enumerates properties from the browser that opened it. Values
+        are read live from the environment.
+      </p>
+
+      <section class="grid">
+        <article>
+          <h2>Navigator</h2>
+          <div id="navigator-info"></div>
+        </article>
+        <article>
+          <h2>Screen</h2>
+          <div id="screen-info"></div>
+        </article>
+        <article>
+          <h2>Location</h2>
+          <div id="location-info"></div>
+        </article>
+        <article>
+          <h2>History</h2>
+          <div id="history-info"></div>
+        </article>
+        <article>
+          <h2>Document</h2>
+          <div id="document-info"></div>
+        </article>
+        <article>
+          <h2>Window</h2>
+          <div id="window-info"></div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const MAX_VALUE_LENGTH = 800;
+
+      const formatValue = (value) => {
+        if (value === null) {
+          return "null";
+        }
+        if (value === undefined) {
+          return "undefined";
+        }
+        if (typeof value === "function") {
+          return `function ${value.name || "(anonymous)"}()`;
+        }
+        if (typeof value === "object") {
+          if (value instanceof Node) {
+            return `<${value.nodeName.toLowerCase()}>`;
+          }
+          if (value instanceof Window) {
+            return "[Window]";
+          }
+          if (value instanceof Location) {
+            return value.href;
+          }
+          if (value instanceof Navigator) {
+            return "[Navigator]";
+          }
+          if (value instanceof Screen) {
+            return "[Screen]";
+          }
+          if (value instanceof History) {
+            return "[History]";
+          }
+          return JSON.stringify(value);
+        }
+        return String(value);
+      };
+
+      const safeRead = (target, prop) => {
+        try {
+          return formatValue(target[prop]);
+        } catch (error) {
+          return `Error: ${error.message}`;
+        }
+      };
+
+      const renderTable = (target, containerId) => {
+        const container = document.getElementById(containerId);
+        const properties = Array.from(
+          new Set([
+            ...Object.getOwnPropertyNames(target),
+            ...Object.keys(target),
+          ])
+        ).sort();
+
+        const rows = properties.map((prop) => {
+          const value = safeRead(target, prop);
+          const truncated =
+            value.length > MAX_VALUE_LENGTH
+              ? `${value.slice(0, MAX_VALUE_LENGTH)}…`
+              : value;
+          return `
+            <tr>
+              <td><strong>${prop}</strong></td>
+              <td>${truncated}</td>
+            </tr>
+          `;
+        });
+
+        container.innerHTML = `
+          <div class="overflow-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      };
+
+      renderTable(navigator, "navigator-info");
+      renderTable(screen, "screen-info");
+      renderTable(location, "location-info");
+      renderTable(history, "history-info");
+      renderTable(document, "document-info");
+      renderTable(window, "window-info");
+    </script>
+  </body>
+</html>
