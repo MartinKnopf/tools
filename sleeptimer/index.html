@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SleepTimer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <style>
+      /* Header with settings button */
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+
+      .header h1 {
+        margin: 0;
+      }
+
+      /* Settings button and menu */
+      .settings-container {
+        position: relative;
+      }
+
+      #settings-btn {
+        width: auto;
+        padding: 0.5rem 0.75rem;
+        margin: 0;
+      }
+
+      .settings-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: var(--pico-card-background-color);
+        border: 1px solid var(--pico-muted-border-color);
+        border-radius: var(--pico-border-radius);
+        padding: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 150px;
+        z-index: 100;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .settings-menu.hidden {
+        display: none;
+      }
+
+      .settings-menu button {
+        margin: 0;
+        width: 100%;
+      }
+
+      /* Sleep control section */
+      .sleep-control {
+        text-align: center;
+        margin: 2rem 0;
+      }
+
+      #sleep-btn {
+        font-size: 1.5rem;
+        padding: 1.5rem 3rem;
+        min-width: 200px;
+      }
+
+      #sleep-btn.active {
+        background-color: var(--pico-del-color);
+        border-color: var(--pico-del-color);
+      }
+
+      #sleep-btn.active:hover {
+        background-color: color-mix(in srgb, var(--pico-del-color) 85%, black);
+      }
+
+      /* Session list */
+      .session-list {
+        margin-top: 2rem;
+      }
+
+      .session-list table {
+        font-size: 0.9rem;
+      }
+
+      .session-list td,
+      .session-list th {
+        padding: 0.5rem;
+        vertical-align: middle;
+      }
+
+      .edit-btn {
+        width: auto;
+        padding: 0.25rem 0.5rem;
+        margin: 0;
+        font-size: 0.8rem;
+      }
+
+      .duration {
+        font-weight: bold;
+      }
+
+      .in-progress {
+        color: var(--pico-primary);
+        font-style: italic;
+      }
+
+      /* Load more button */
+      #load-more-btn {
+        width: 100%;
+        margin-top: 1rem;
+      }
+
+      #load-more-btn.hidden {
+        display: none;
+      }
+
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--pico-muted-color);
+      }
+
+      /* Dialog styling */
+      dialog article {
+        min-width: min(400px, 90vw);
+      }
+
+      dialog label {
+        display: block;
+        margin-bottom: 1rem;
+      }
+
+      dialog input[type="datetime-local"] {
+        width: 100%;
+        margin-top: 0.25rem;
+      }
+
+      dialog footer {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+      }
+
+      dialog footer button {
+        width: auto;
+        margin: 0;
+      }
+
+      /* Mobile responsiveness */
+      @media (max-width: 600px) {
+        #sleep-btn {
+          width: 100%;
+          padding: 1.25rem 1rem;
+        }
+
+        .session-list {
+          overflow-x: auto;
+        }
+
+        .session-list table {
+          font-size: 0.8rem;
+        }
+
+        .session-list td,
+        .session-list th {
+          padding: 0.4rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <!-- Header with title and settings -->
+      <div class="header">
+        <h1>SleepTimer</h1>
+        <div class="settings-container">
+          <button id="settings-btn" class="outline">Settings</button>
+          <div id="settings-menu" class="settings-menu hidden">
+            <button id="export-btn" class="outline">Export Data</button>
+            <button id="import-btn" class="outline">Import Data</button>
+            <input type="file" id="import-file" accept=".json" hidden />
+          </div>
+        </div>
+      </div>
+
+      <!-- Main sleep button -->
+      <section class="sleep-control">
+        <button id="sleep-btn">Start Sleep</button>
+      </section>
+
+      <!-- Session list -->
+      <section class="session-list">
+        <table>
+          <thead>
+            <tr>
+              <th>Start</th>
+              <th>End</th>
+              <th>Duration</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="sessions-body"></tbody>
+        </table>
+        <div id="empty-state" class="empty-state hidden">
+          No sleep sessions recorded yet.
+        </div>
+        <button id="load-more-btn" class="outline hidden">Load more</button>
+      </section>
+    </main>
+
+    <!-- Import confirmation dialog -->
+    <dialog id="import-dialog">
+      <article>
+        <h3>Confirm Import</h3>
+        <p>This will overwrite all existing data. Are you sure you want to continue?</p>
+        <footer>
+          <button id="import-cancel" class="secondary">Cancel</button>
+          <button id="import-confirm">Import</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Edit session dialog -->
+    <dialog id="edit-dialog">
+      <article>
+        <h3>Edit Session</h3>
+        <label>
+          Start
+          <input type="datetime-local" id="edit-start" />
+        </label>
+        <label>
+          End
+          <input type="datetime-local" id="edit-end" />
+        </label>
+        <p id="edit-error" style="color: var(--pico-del-color); display: none;"></p>
+        <footer>
+          <button id="edit-delete" class="secondary outline" style="margin-right: auto;">Delete</button>
+          <button id="edit-cancel" class="secondary">Cancel</button>
+          <button id="edit-save">Save</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <script>
+      /* ========================================
+         Constants and State
+      ======================================== */
+      const STORAGE_KEY = 'sleeptimer_sessions';
+      const ACTIVE_KEY = 'sleeptimer_active';
+      const INITIAL_DISPLAY_COUNT = 50;
+      const LOAD_MORE_COUNT = 15;
+
+      let displayedCount = INITIAL_DISPLAY_COUNT;
+      let timerInterval = null;
+      let pendingImportData = null;
+      let editingSessionId = null;
+
+      /* ========================================
+         LocalStorage Data Layer
+      ======================================== */
+
+      // Load all sessions from localStorage
+      function loadSessions() {
+        const data = localStorage.getItem(STORAGE_KEY);
+        if (!data) return [];
+        try {
+          return JSON.parse(data);
+        } catch (e) {
+          console.error('Failed to parse sessions:', e);
+          return [];
+        }
+      }
+
+      // Save sessions to localStorage
+      function saveSessions(sessions) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+      }
+
+      // Get active session ID
+      function getActiveSessionId() {
+        return localStorage.getItem(ACTIVE_KEY);
+      }
+
+      // Set active session ID
+      function setActiveSessionId(id) {
+        if (id) {
+          localStorage.setItem(ACTIVE_KEY, id);
+        } else {
+          localStorage.removeItem(ACTIVE_KEY);
+        }
+      }
+
+      /* ========================================
+         Session Operations
+      ======================================== */
+
+      // Generate unique ID
+      function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+      }
+
+      // Start a new sleep session
+      function startSession() {
+        const sessions = loadSessions();
+        const newSession = {
+          id: generateId(),
+          startTime: new Date().toISOString(),
+          endTime: null
+        };
+        sessions.unshift(newSession);
+        saveSessions(sessions);
+        setActiveSessionId(newSession.id);
+        return newSession;
+      }
+
+      // End the active session
+      function endSession() {
+        const activeId = getActiveSessionId();
+        if (!activeId) return null;
+
+        const sessions = loadSessions();
+        const session = sessions.find(s => s.id === activeId);
+        if (session) {
+          session.endTime = new Date().toISOString();
+          saveSessions(sessions);
+        }
+        setActiveSessionId(null);
+        return session;
+      }
+
+      // Get the active session object
+      function getActiveSession() {
+        const activeId = getActiveSessionId();
+        if (!activeId) return null;
+        const sessions = loadSessions();
+        return sessions.find(s => s.id === activeId) || null;
+      }
+
+      // Update a session
+      function updateSession(id, startTime, endTime) {
+        const sessions = loadSessions();
+        const session = sessions.find(s => s.id === id);
+        if (session) {
+          session.startTime = startTime;
+          session.endTime = endTime;
+          saveSessions(sessions);
+        }
+        return session;
+      }
+
+      // Delete a session
+      function deleteSession(id) {
+        const sessions = loadSessions();
+        const index = sessions.findIndex(s => s.id === id);
+        if (index !== -1) {
+          sessions.splice(index, 1);
+          saveSessions(sessions);
+          // Clear active if deleting active session
+          if (getActiveSessionId() === id) {
+            setActiveSessionId(null);
+          }
+        }
+      }
+
+      /* ========================================
+         Duration Calculation & Formatting
+      ======================================== */
+
+      // Calculate duration in milliseconds
+      function calculateDuration(startTime, endTime) {
+        const start = new Date(startTime).getTime();
+        const end = endTime ? new Date(endTime).getTime() : Date.now();
+        return Math.max(0, end - start);
+      }
+
+      // Format duration as "5h 25m"
+      function formatDuration(ms) {
+        const totalMinutes = Math.floor(ms / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return `${hours}h ${minutes}m`;
+      }
+
+      // Format datetime for display
+      function formatDateTime(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+
+      // Format datetime for input[type="datetime-local"]
+      function formatForInput(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        const offset = date.getTimezoneOffset();
+        const local = new Date(date.getTime() - offset * 60000);
+        return local.toISOString().slice(0, 16);
+      }
+
+      // Parse datetime-local input to ISO string
+      function parseFromInput(localString) {
+        if (!localString) return null;
+        return new Date(localString).toISOString();
+      }
+
+      /* ========================================
+         Rendering
+      ======================================== */
+
+      // Render the sleep button
+      function renderSleepButton() {
+        const btn = document.getElementById('sleep-btn');
+        const activeSession = getActiveSession();
+
+        if (activeSession) {
+          const duration = calculateDuration(activeSession.startTime, null);
+          btn.textContent = formatDuration(duration);
+          btn.classList.add('active');
+          btn.setAttribute('aria-label', 'End sleep session');
+        } else {
+          btn.textContent = 'Start Sleep';
+          btn.classList.remove('active');
+          btn.setAttribute('aria-label', 'Start sleep session');
+        }
+      }
+
+      // Render session list
+      function renderSessionList() {
+        const tbody = document.getElementById('sessions-body');
+        const emptyState = document.getElementById('empty-state');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        const sessions = loadSessions();
+        const activeId = getActiveSessionId();
+
+        // Show empty state if no sessions
+        if (sessions.length === 0) {
+          tbody.innerHTML = '';
+          emptyState.classList.remove('hidden');
+          loadMoreBtn.classList.add('hidden');
+          return;
+        }
+
+        emptyState.classList.add('hidden');
+
+        // Get sessions to display
+        const toDisplay = sessions.slice(0, displayedCount);
+
+        // Build table rows
+        const rows = toDisplay.map(session => {
+          const isActive = session.id === activeId;
+          const duration = calculateDuration(session.startTime, session.endTime);
+
+          return `
+            <tr>
+              <td>${formatDateTime(session.startTime)}</td>
+              <td>${isActive ? '<span class="in-progress">In progress</span>' : formatDateTime(session.endTime)}</td>
+              <td class="duration">${formatDuration(duration)}</td>
+              <td>
+                <button class="edit-btn outline" data-id="${session.id}" aria-label="Edit session">
+                  Edit
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+
+        tbody.innerHTML = rows.join('');
+
+        // Show/hide load more button
+        if (sessions.length > displayedCount) {
+          loadMoreBtn.classList.remove('hidden');
+        } else {
+          loadMoreBtn.classList.add('hidden');
+        }
+
+        // Attach edit button listeners
+        tbody.querySelectorAll('.edit-btn').forEach(btn => {
+          btn.addEventListener('click', () => openEditDialog(btn.dataset.id));
+        });
+      }
+
+      // Update active session duration (called every second)
+      function updateActiveDuration() {
+        const activeSession = getActiveSession();
+        if (activeSession) {
+          renderSleepButton();
+          renderSessionList();
+        }
+      }
+
+      /* ========================================
+         Timer Management
+      ======================================== */
+
+      function startTimer() {
+        if (timerInterval) return;
+        timerInterval = setInterval(updateActiveDuration, 1000);
+      }
+
+      function stopTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+      /* ========================================
+         Edit Dialog
+      ======================================== */
+
+      function openEditDialog(sessionId) {
+        const sessions = loadSessions();
+        const session = sessions.find(s => s.id === sessionId);
+        if (!session) return;
+
+        editingSessionId = sessionId;
+
+        const dialog = document.getElementById('edit-dialog');
+        const startInput = document.getElementById('edit-start');
+        const endInput = document.getElementById('edit-end');
+        const errorEl = document.getElementById('edit-error');
+
+        startInput.value = formatForInput(session.startTime);
+        endInput.value = session.endTime ? formatForInput(session.endTime) : '';
+        errorEl.style.display = 'none';
+
+        dialog.showModal();
+      }
+
+      function closeEditDialog() {
+        const dialog = document.getElementById('edit-dialog');
+        dialog.close();
+        editingSessionId = null;
+      }
+
+      function saveEditDialog() {
+        const startInput = document.getElementById('edit-start');
+        const endInput = document.getElementById('edit-end');
+        const errorEl = document.getElementById('edit-error');
+
+        const startTime = parseFromInput(startInput.value);
+        const endTime = endInput.value ? parseFromInput(endInput.value) : null;
+
+        // Validation
+        if (!startTime) {
+          errorEl.textContent = 'Start time is required.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        if (endTime && new Date(endTime) <= new Date(startTime)) {
+          errorEl.textContent = 'End time must be after start time.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        updateSession(editingSessionId, startTime, endTime);
+        closeEditDialog();
+        renderSessionList();
+      }
+
+      function deleteFromEditDialog() {
+        if (confirm('Are you sure you want to delete this session?')) {
+          deleteSession(editingSessionId);
+          closeEditDialog();
+          renderSessionList();
+          renderSleepButton();
+        }
+      }
+
+      /* ========================================
+         Export/Import
+      ======================================== */
+
+      function exportData() {
+        const sessions = loadSessions();
+        const data = JSON.stringify(sessions, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const date = new Date().toISOString().slice(0, 10);
+        const filename = `sleeptimer-export-${date}.json`;
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+
+        URL.revokeObjectURL(url);
+        toggleSettingsMenu();
+      }
+
+      function triggerImport() {
+        document.getElementById('import-file').click();
+        toggleSettingsMenu();
+      }
+
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+
+            // Validate structure
+            if (!Array.isArray(data)) {
+              alert('Invalid file format: expected an array of sessions.');
+              return;
+            }
+
+            // Basic validation of session objects
+            const valid = data.every(s =>
+              typeof s === 'object' &&
+              typeof s.id === 'string' &&
+              typeof s.startTime === 'string'
+            );
+
+            if (!valid) {
+              alert('Invalid file format: sessions have incorrect structure.');
+              return;
+            }
+
+            pendingImportData = data;
+            document.getElementById('import-dialog').showModal();
+          } catch (err) {
+            alert('Failed to parse file: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+
+        // Reset file input
+        event.target.value = '';
+      }
+
+      function confirmImport() {
+        if (pendingImportData) {
+          saveSessions(pendingImportData);
+          setActiveSessionId(null);
+
+          // Check if any session is still active (has no endTime)
+          const activeSession = pendingImportData.find(s => !s.endTime);
+          if (activeSession) {
+            setActiveSessionId(activeSession.id);
+          }
+
+          pendingImportData = null;
+          displayedCount = INITIAL_DISPLAY_COUNT;
+
+          renderSleepButton();
+          renderSessionList();
+
+          if (getActiveSessionId()) {
+            startTimer();
+          } else {
+            stopTimer();
+          }
+        }
+        document.getElementById('import-dialog').close();
+      }
+
+      function cancelImport() {
+        pendingImportData = null;
+        document.getElementById('import-dialog').close();
+      }
+
+      /* ========================================
+         Settings Menu
+      ======================================== */
+
+      function toggleSettingsMenu() {
+        const menu = document.getElementById('settings-menu');
+        menu.classList.toggle('hidden');
+      }
+
+      function closeSettingsMenu(event) {
+        const menu = document.getElementById('settings-menu');
+        const btn = document.getElementById('settings-btn');
+
+        if (!menu.classList.contains('hidden') &&
+            !menu.contains(event.target) &&
+            !btn.contains(event.target)) {
+          menu.classList.add('hidden');
+        }
+      }
+
+      /* ========================================
+         Event Listeners
+      ======================================== */
+
+      function setupEventListeners() {
+        // Sleep button
+        document.getElementById('sleep-btn').addEventListener('click', () => {
+          const activeSession = getActiveSession();
+          if (activeSession) {
+            endSession();
+            stopTimer();
+          } else {
+            startSession();
+            startTimer();
+          }
+          renderSleepButton();
+          renderSessionList();
+        });
+
+        // Settings menu
+        document.getElementById('settings-btn').addEventListener('click', toggleSettingsMenu);
+        document.addEventListener('click', closeSettingsMenu);
+
+        // Export/Import
+        document.getElementById('export-btn').addEventListener('click', exportData);
+        document.getElementById('import-btn').addEventListener('click', triggerImport);
+        document.getElementById('import-file').addEventListener('change', handleFileSelect);
+
+        // Import dialog
+        document.getElementById('import-confirm').addEventListener('click', confirmImport);
+        document.getElementById('import-cancel').addEventListener('click', cancelImport);
+
+        // Edit dialog
+        document.getElementById('edit-save').addEventListener('click', saveEditDialog);
+        document.getElementById('edit-cancel').addEventListener('click', closeEditDialog);
+        document.getElementById('edit-delete').addEventListener('click', deleteFromEditDialog);
+
+        // Load more
+        document.getElementById('load-more-btn').addEventListener('click', () => {
+          displayedCount += LOAD_MORE_COUNT;
+          renderSessionList();
+        });
+      }
+
+      /* ========================================
+         Initialization
+      ======================================== */
+
+      function init() {
+        setupEventListeners();
+        renderSleepButton();
+        renderSessionList();
+
+        // Start timer if there's an active session
+        if (getActiveSessionId()) {
+          startTimer();
+        }
+      }
+
+      // Run on DOM ready
+      document.addEventListener('DOMContentLoaded', init);
+    </script>
+  </body>
+</html>
