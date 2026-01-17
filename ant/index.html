@@ -137,30 +137,6 @@
         }
 
         /**
-         * Catmull-Rom spline interpolation
-         */
-        function catmullRom(p0, p1, p2, p3, t) {
-          const t2 = t * t;
-          const t3 = t2 * t;
-
-          const x = 0.5 * (
-            (2 * p1.x) +
-            (-p0.x + p2.x) * t +
-            (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
-            (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
-          );
-
-          const y = 0.5 * (
-            (2 * p1.y) +
-            (-p0.y + p2.y) * t +
-            (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
-            (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3
-          );
-
-          return { x, y };
-        }
-
-        /**
          * Calculate distance between two points
          */
         function distance(p1, p2) {
@@ -170,13 +146,117 @@
         }
 
         /**
-         * Build a lookup table for arc-length parameterization
-         * This allows constant velocity movement along the spline
+         * Catmull-Rom spline interpolation
          */
-        function buildArcLengthTable(controlPoints, samplesPerSegment) {
-          const table = [{ t: 0, dist: 0 }];
-          let totalDist = 0;
+        function catmullRom(p0, p1, p2, p3, t) {
+          const t2 = t * t;
+          const t3 = t2 * t;
+
+          return {
+            x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t +
+                (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+                (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+            y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t +
+                (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+                (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+          };
+        }
+
+        /**
+         * Generate waypoints for natural ant movement
+         */
+        function generateWaypoints(targetLength) {
+          const bounds = getBounds();
+          const waypoints = [{ x: posX, y: posY }];
+
+          let currentLength = 0;
+          let lastX = posX;
+          let lastY = posY;
+          let lastAngle = (rotation - 90) * Math.PI / 180;
+
+          // Generate waypoints until we reach target length
+          while (currentLength < targetLength) {
+            // Ant-like wandering: gradual turns
+            const turnAmount = (Math.random() - 0.5) * Math.PI * 0.5;
+            lastAngle += turnAmount;
+
+            // Segment length
+            const segLength = Math.min(50 + Math.random() * 50, targetLength - currentLength + 10);
+
+            let newX = lastX + Math.cos(lastAngle) * segLength;
+            let newY = lastY + Math.sin(lastAngle) * segLength;
+
+            // Bounce off boundaries
+            if (newX < bounds.minX) {
+              newX = bounds.minX;
+              lastAngle = Math.PI - lastAngle;
+            } else if (newX > bounds.maxX) {
+              newX = bounds.maxX;
+              lastAngle = Math.PI - lastAngle;
+            }
+            if (newY < bounds.minY) {
+              newY = bounds.minY;
+              lastAngle = -lastAngle;
+            } else if (newY > bounds.maxY) {
+              newY = bounds.maxY;
+              lastAngle = -lastAngle;
+            }
+
+            const segDist = distance({ x: lastX, y: lastY }, { x: newX, y: newY });
+            if (segDist > 1) {
+              waypoints.push({ x: newX, y: newY });
+              currentLength += segDist;
+              lastX = newX;
+              lastY = newY;
+            }
+          }
+
+          return waypoints;
+        }
+
+        /**
+         * Build spline path with arc-length parameterization for constant velocity
+         */
+        function buildPath(waypoints) {
+          // Need at least 2 waypoints
+          if (waypoints.length < 2) {
+            return { points: [], totalLength: 0 };
+          }
+
+          // Add ghost points for smooth Catmull-Rom
+          const controlPoints = [];
+
+          // Ghost point before first
+          const firstDir = {
+            x: waypoints[1].x - waypoints[0].x,
+            y: waypoints[1].y - waypoints[0].y
+          };
+          controlPoints.push({
+            x: waypoints[0].x - firstDir.x * 0.5,
+            y: waypoints[0].y - firstDir.y * 0.5
+          });
+
+          // Add all waypoints
+          for (const wp of waypoints) {
+            controlPoints.push(wp);
+          }
+
+          // Ghost point after last
+          const lastIdx = waypoints.length - 1;
+          const lastDir = {
+            x: waypoints[lastIdx].x - waypoints[lastIdx - 1].x,
+            y: waypoints[lastIdx].y - waypoints[lastIdx - 1].y
+          };
+          controlPoints.push({
+            x: waypoints[lastIdx].x + lastDir.x * 0.5,
+            y: waypoints[lastIdx].y + lastDir.y * 0.5
+          });
+
+          // Sample the spline at regular intervals
           const numSegments = controlPoints.length - 3;
+          const samplesPerSegment = 20;
+          const points = [];
+          let totalLength = 0;
 
           for (let seg = 0; seg < numSegments; seg++) {
             const p0 = controlPoints[seg];
@@ -184,129 +264,60 @@
             const p2 = controlPoints[seg + 2];
             const p3 = controlPoints[seg + 3];
 
-            let prevPoint = catmullRom(p0, p1, p2, p3, 0);
+            for (let i = 0; i <= samplesPerSegment; i++) {
+              // Skip first point of subsequent segments (it's the same as last point of previous)
+              if (seg > 0 && i === 0) continue;
 
-            for (let i = 1; i <= samplesPerSegment; i++) {
-              const localT = i / samplesPerSegment;
-              const point = catmullRom(p0, p1, p2, p3, localT);
-              totalDist += distance(prevPoint, point);
+              const t = i / samplesPerSegment;
+              const point = catmullRom(p0, p1, p2, p3, t);
 
-              // Global t value across all segments
-              const globalT = (seg + localT) / numSegments;
-              table.push({ t: globalT, dist: totalDist });
+              if (points.length > 0) {
+                totalLength += distance(points[points.length - 1], point);
+              }
 
-              prevPoint = point;
+              points.push({ ...point, dist: totalLength });
             }
           }
 
-          return { table, totalLength: totalDist };
+          return { points, totalLength };
         }
 
         /**
-         * Find t value for a given distance using the arc-length table
+         * Get position at a given distance along the path
          */
-        function getTForDistance(table, targetDist) {
-          // Binary search for the closest entry
+        function getPositionAtDistance(pathPoints, targetDist) {
+          if (pathPoints.length === 0) return { x: posX, y: posY };
+          if (pathPoints.length === 1) return pathPoints[0];
+          if (targetDist <= 0) return pathPoints[0];
+          if (targetDist >= pathPoints[pathPoints.length - 1].dist) {
+            return pathPoints[pathPoints.length - 1];
+          }
+
+          // Binary search for the segment
           let low = 0;
-          let high = table.length - 1;
+          let high = pathPoints.length - 1;
 
           while (low < high - 1) {
             const mid = Math.floor((low + high) / 2);
-            if (table[mid].dist < targetDist) {
+            if (pathPoints[mid].dist < targetDist) {
               low = mid;
             } else {
               high = mid;
             }
           }
 
-          // Linear interpolation between entries
-          const d0 = table[low].dist;
-          const d1 = table[high].dist;
-          const t0 = table[low].t;
-          const t1 = table[high].t;
+          // Interpolate between points
+          const p1 = pathPoints[low];
+          const p2 = pathPoints[high];
+          const segmentDist = p2.dist - p1.dist;
 
-          if (d1 === d0) return t0;
+          if (segmentDist === 0) return p1;
 
-          const ratio = (targetDist - d0) / (d1 - d0);
-          return t0 + ratio * (t1 - t0);
-        }
-
-        /**
-         * Get position on spline at global t (0-1)
-         */
-        function getPositionAtT(controlPoints, t) {
-          const numSegments = controlPoints.length - 3;
-          const scaledT = t * numSegments;
-          const segIndex = Math.min(Math.floor(scaledT), numSegments - 1);
-          const localT = scaledT - segIndex;
-
-          return catmullRom(
-            controlPoints[segIndex],
-            controlPoints[segIndex + 1],
-            controlPoints[segIndex + 2],
-            controlPoints[segIndex + 3],
-            localT
-          );
-        }
-
-        /**
-         * Generate control points for a path with target length
-         */
-        function generatePath(targetLength) {
-          const bounds = getBounds();
-          const points = [];
-
-          // Ghost point before start for smooth curve beginning
-          const startAngle = (rotation - 90) * Math.PI / 180;
-          points.push({
-            x: posX - Math.cos(startAngle) * 30,
-            y: posY - Math.sin(startAngle) * 30
-          });
-
-          // Start at current position
-          points.push({ x: posX, y: posY });
-
-          // Generate waypoints to achieve target path length
-          let currentLength = 0;
-          let lastX = posX;
-          let lastY = posY;
-          let lastAngle = startAngle;
-
-          while (currentLength < targetLength * 0.8) {
-            // Ant-like wandering: mostly forward with slight turns
-            const turnAmount = (Math.random() - 0.5) * Math.PI * 0.6;
-            lastAngle += turnAmount;
-
-            // Segment length varies slightly
-            const segLength = 40 + Math.random() * 60;
-
-            let newX = lastX + Math.cos(lastAngle) * segLength;
-            let newY = lastY + Math.sin(lastAngle) * segLength;
-
-            // Bounce off boundaries with angle reflection
-            if (newX < bounds.minX || newX > bounds.maxX) {
-              lastAngle = Math.PI - lastAngle;
-              newX = clamp(newX, bounds.minX, bounds.maxX);
-            }
-            if (newY < bounds.minY || newY > bounds.maxY) {
-              lastAngle = -lastAngle;
-              newY = clamp(newY, bounds.minY, bounds.maxY);
-            }
-
-            points.push({ x: newX, y: newY });
-            currentLength += distance({ x: lastX, y: lastY }, { x: newX, y: newY });
-            lastX = newX;
-            lastY = newY;
-          }
-
-          // Ghost point after end for smooth curve ending
-          const endAngle = lastAngle;
-          points.push({
-            x: clamp(lastX + Math.cos(endAngle) * 30, bounds.minX, bounds.maxX),
-            y: clamp(lastY + Math.sin(endAngle) * 30, bounds.minY, bounds.maxY)
-          });
-
-          return points;
+          const t = (targetDist - p1.dist) / segmentDist;
+          return {
+            x: p1.x + (p2.x - p1.x) * t,
+            y: p1.y + (p2.y - p1.y) * t
+          };
         }
 
         /**
@@ -319,40 +330,41 @@
           // Random duration between 1500 and 5000 ms
           const duration = 1500 + Math.random() * 3500;
 
-          // Calculate path length based on duration and constant speed
+          // Calculate target path length for constant velocity
           const targetLength = duration * ANT_SPEED;
 
-          // Generate path and build arc-length table
-          const controlPoints = generatePath(targetLength);
-          const { table, totalLength } = buildArcLengthTable(controlPoints, 20);
+          // Generate path
+          const waypoints = generateWaypoints(targetLength);
+          const { points: pathPoints, totalLength } = buildPath(waypoints);
 
-          // Actual duration based on real path length for constant velocity
-          const actualDuration = totalLength / ANT_SPEED;
+          // Calculate actual duration based on path length
+          const actualDuration = totalLength > 0 ? totalLength / ANT_SPEED : duration;
 
           const startTime = performance.now();
+          let lastPos = { x: posX, y: posY };
 
           function animate(currentTime) {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / actualDuration, 1);
 
-            // Distance traveled at constant velocity
+            // Distance at constant velocity
             const distanceTraveled = progress * totalLength;
 
-            // Get t value for this distance (arc-length parameterization)
-            const t = getTForDistance(table, distanceTraveled);
-
-            // Get current position
-            const pos = getPositionAtT(controlPoints, t);
+            // Get position
+            const pos = getPositionAtDistance(pathPoints, distanceTraveled);
 
             // Calculate rotation from movement direction
-            const nextT = Math.min(t + 0.001, 1);
-            const nextPos = getPositionAtT(controlPoints, nextT);
-            const angle = Math.atan2(nextPos.y - pos.y, nextPos.x - pos.x);
+            const dx = pos.x - lastPos.x;
+            const dy = pos.y - lastPos.y;
+            if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+              const angle = Math.atan2(dy, dx);
+              rotation = (angle * 180 / Math.PI) + 90;
+            }
 
-            // Update ant state
+            // Update state
             posX = pos.x;
             posY = pos.y;
-            rotation = (angle * 180 / Math.PI) + 90; // +90 because ant emoji faces up
+            lastPos = pos;
 
             updateAntPosition();
 
@@ -379,7 +391,7 @@
           startWalking();
         }, { passive: false });
 
-        // Handle window resize - keep ant in bounds
+        // Handle window resize
         window.addEventListener('resize', function() {
           const bounds = getBounds();
           posX = clamp(posX, bounds.minX, bounds.maxX);
