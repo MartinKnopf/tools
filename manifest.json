@@ -1,0 +1,25 @@
+{
+  "name": "Static Tools",
+  "short_name": "Tools",
+  "description": "Collection of static utility tools",
+  "start_url": "/tools/",
+  "scope": "/tools/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1095c1",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
