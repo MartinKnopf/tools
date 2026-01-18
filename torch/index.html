@@ -9,6 +9,11 @@
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
     <style>
+      /* Global button size override - 50% smaller */
+      button {
+        font-size: calc(var(--pico-font-size) * 0.5);
+      }
+
       /* White background mode */
       .white-mode {
         background-color: white !important;
