@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Torch</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <style>
+      /* White background mode */
+      .white-mode {
+        background-color: white !important;
+      }
+
+      /* Centered layout for the torch button */
+      .torch-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 1rem;
+      }
+
+      /* Torch toggle button */
+      #torch-btn {
+        font-size: 3rem;
+        padding: 1.5rem 2rem;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body class="white-mode">
+    <main class="container torch-container">
+      <button id="torch-btn" aria-label="Toggle background color">🔦</button>
+    </main>
+
+    <script>
+      /* ========================================
+         Constants and State
+      ======================================== */
+      const STORAGE_KEY = 'torch_white_mode';
+
+      /* ========================================
+         Background Toggle Logic
+      ======================================== */
+
+      // Check if white mode is enabled (default: true)
+      function isWhiteMode() {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        // Default to white mode if no preference stored
+        return stored === null ? true : stored === 'true';
+      }
+
+      // Save white mode preference
+      function saveWhiteMode(enabled) {
+        localStorage.setItem(STORAGE_KEY, enabled.toString());
+      }
+
+      // Apply the current mode to the body
+      function applyMode() {
+        if (isWhiteMode()) {
+          document.body.classList.add('white-mode');
+        } else {
+          document.body.classList.remove('white-mode');
+        }
+      }
+
+      // Toggle between white and pico default background
+      function toggleMode() {
+        const newMode = !isWhiteMode();
+        saveWhiteMode(newMode);
+        applyMode();
+      }
+
+      /* ========================================
+         Event Listeners
+      ======================================== */
+
+      function setupEventListeners() {
+        document.getElementById('torch-btn').addEventListener('click', toggleMode);
+      }
+
+      /* ========================================
+         Initialization
+      ======================================== */
+
+      function init() {
+        applyMode();
+        setupEventListeners();
+      }
+
+      // Run on DOM ready
+      document.addEventListener('DOMContentLoaded', init);
+    </script>
+  </body>
+</html>
