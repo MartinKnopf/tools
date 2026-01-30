@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v4';
+const CACHE_NAME = 'static-tools-v5';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -9,6 +9,7 @@ const PRECACHE_URLS = [
   '/tools/ant/index.html',
   '/tools/browser/index.htm',
   '/tools/sleeptimer/index.html',
+  '/tools/streaks/index.html',
   '/tools/torch/index.html'
 ];
 
