@@ -338,42 +338,55 @@
          Streak Calculation
       ======================================== */
 
-      // Get the period key for a given date based on habit period type
-      function getPeriodKey(date, period) {
-        const d = new Date(date);
+      // Format a local Date object as YYYY-MM-DD
+      function formatLocalDate(d) {
+        var year = d.getFullYear();
+        var month = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+      }
+
+      // Get today's date as a local YYYY-MM-DD string
+      function getTodayStr() {
+        return formatLocalDate(new Date());
+      }
+
+      // Get the period key for a local date string (YYYY-MM-DD)
+      function getPeriodKey(dateStr, period) {
         if (period === 'day') {
-          return d.toISOString().slice(0, 10); // YYYY-MM-DD
+          return dateStr;
         }
         if (period === 'week') {
-          // ISO week: find Monday of the week
-          const day = d.getDay();
-          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-          const monday = new Date(d);
+          // Parse as local time to find Monday of the week
+          var d = new Date(dateStr + 'T00:00:00');
+          var day = d.getDay();
+          var diff = d.getDate() - day + (day === 0 ? -6 : 1);
+          var monday = new Date(d);
           monday.setDate(diff);
-          return monday.toISOString().slice(0, 10);
+          return formatLocalDate(monday);
         }
         if (period === 'month') {
-          return d.toISOString().slice(0, 7); // YYYY-MM
+          return dateStr.slice(0, 7); // YYYY-MM
         }
-        return d.toISOString().slice(0, 10);
+        return dateStr;
       }
 
       // Subtract one period from a period key and return the previous period key
       function prevPeriodKey(periodKey, period) {
         if (period === 'day') {
-          const d = new Date(periodKey + 'T00:00:00');
+          var d = new Date(periodKey + 'T00:00:00');
           d.setDate(d.getDate() - 1);
-          return d.toISOString().slice(0, 10);
+          return formatLocalDate(d);
         }
         if (period === 'week') {
-          const d = new Date(periodKey + 'T00:00:00');
+          var d = new Date(periodKey + 'T00:00:00');
           d.setDate(d.getDate() - 7);
-          return d.toISOString().slice(0, 10);
+          return formatLocalDate(d);
         }
         if (period === 'month') {
-          const [y, m] = periodKey.split('-').map(Number);
-          const prev = new Date(y, m - 2, 1);
-          return prev.toISOString().slice(0, 7);
+          var parts = periodKey.split('-').map(Number);
+          var prev = new Date(parts[0], parts[1] - 2, 1);
+          return prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
         }
         return periodKey;
       }
@@ -383,15 +396,14 @@
         if (!habit.entries || habit.entries.length === 0) return 0;
 
         // Collect unique period keys from entries
-        const periodKeys = new Set();
+        var periodKeys = new Set();
         habit.entries.forEach(function(entry) {
           periodKeys.add(getPeriodKey(entry.date, habit.period));
         });
 
         // Start from the current period and walk backwards
-        const now = new Date();
-        let currentKey = getPeriodKey(now, habit.period);
-        let streak = 0;
+        var currentKey = getPeriodKey(getTodayStr(), habit.period);
+        var streak = 0;
 
         // Check if the current period has an entry; if not, start from previous
         if (!periodKeys.has(currentKey)) {
