@@ -75,6 +75,40 @@
       .ptr-content {
         transition: transform 0.2s ease;
       }
+
+      /* Page layout */
+      .index-container {
+        padding: 1rem 0 6rem;
+      }
+
+      /* Tool list - vertical layout matching Streaks habit list */
+      .tool-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .tool-list li {
+        padding: 0;
+        margin: 0;
+      }
+
+      .tool-list a {
+        display: block;
+        padding: 0.8rem 1rem;
+        background: var(--pico-card-background-color);
+        border-radius: 0.5rem;
+        text-decoration: none;
+        transition: opacity 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .tool-list a:active {
+        opacity: 0.7;
+      }
     </style>
   </head>
   <body>
@@ -86,18 +120,15 @@
     </div>
 
     <div class="ptr-content" id="ptrContent">
-      <main class="container">
+      <main class="container index-container">
         <h1>Static Tools</h1>
-        <p>Select a tool below.</p>
-        <nav>
-          <ul>
-            <li><a href="ant/index.html">Ant</a></li>
-            <li><a href="browser/index.htm">Browser Info</a></li>
-            <li><a href="sleeptimer/index.html">SleepTimer</a></li>
-            <li><a href="streaks/index.html">Streaks</a></li>
-            <li><a href="torch/index.html">Torch</a></li>
-          </ul>
-        </nav>
+        <ul class="tool-list">
+          <li><a href="ant/index.html">Ant</a></li>
+          <li><a href="browser/index.htm">Browser Info</a></li>
+          <li><a href="sleeptimer/index.html">SleepTimer</a></li>
+          <li><a href="streaks/index.html">Streaks</a></li>
+          <li><a href="torch/index.html">Torch</a></li>
+        </ul>
       </main>
     </div>
 
