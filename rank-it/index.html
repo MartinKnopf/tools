@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#1095c1" />
+    <title>Rank it</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="apple-touch-icon" href="../icons/icon-192.png" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <style>
+      /* Global button size override */
+      button {
+        font-size: calc(var(--pico-font-size) * 0.5);
+      }
+
+      /* Page layout */
+      .rankit-container {
+        padding: 1rem 0 6rem;
+      }
+
+      /* Header with title and action button */
+      .rankit-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+
+      .rankit-header h1 {
+        margin: 0;
+      }
+
+      .header-btn {
+        width: auto;
+        padding: 0.4rem 0.8rem;
+        margin: 0;
+        font-size: 1.2rem;
+        line-height: 1;
+      }
+
+      /* Back button in items view */
+      .back-btn {
+        width: auto;
+        padding: 0.4rem 0.8rem;
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1;
+      }
+
+      /* Card list shared styles */
+      .card-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      /* List cards (lists view) */
+      .list-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.8rem 1rem;
+        background: var(--pico-card-background-color);
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: opacity 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .list-card:active {
+        opacity: 0.7;
+      }
+
+      .list-card-name {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .list-card-count {
+        font-size: 0.85rem;
+        color: var(--pico-muted-color);
+        white-space: nowrap;
+        padding-left: 1rem;
+      }
+
+      /* Item cards (items view) */
+      .item-card {
+        display: flex;
+        align-items: center;
+        padding: 0.6rem 0.8rem;
+        background: var(--pico-card-background-color);
+        border-radius: 0.5rem;
+        gap: 0.5rem;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .item-card.dragging {
+        opacity: 0.5;
+      }
+
+      .item-card.drag-over {
+        border-top: 2px solid var(--pico-primary);
+      }
+
+      .item-rank {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--pico-primary);
+        white-space: nowrap;
+        min-width: 2rem;
+      }
+
+      .item-text {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+      }
+
+      .item-actions {
+        display: flex;
+        gap: 0.2rem;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .item-action-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.3rem 0.4rem;
+        font-size: 0.9rem;
+        width: auto;
+        margin: 0;
+        color: var(--pico-muted-color);
+        line-height: 1;
+      }
+
+      .item-action-btn:hover {
+        color: var(--pico-color);
+      }
+
+      .item-action-btn.delete-item {
+        color: var(--pico-del-color);
+      }
+
+      /* Drag handle */
+      .drag-handle {
+        cursor: grab;
+        color: var(--pico-muted-color);
+        font-size: 1rem;
+        padding: 0.3rem 0.2rem;
+        line-height: 1;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .drag-handle:active {
+        cursor: grabbing;
+      }
+
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        color: var(--pico-muted-color);
+        padding: 3rem 1rem;
+      }
+
+      /* View management */
+      .view {
+        display: none;
+      }
+
+      .view.active {
+        display: block;
+      }
+
+      /* Dialog overrides */
+      dialog {
+        max-width: 480px;
+        width: calc(100% - 2rem);
+      }
+
+      dialog article {
+        margin: 0;
+        padding: 1.5rem;
+      }
+
+      dialog header {
+        padding: 0 0 1rem;
+      }
+
+      dialog header h3 {
+        margin: 0;
+      }
+
+      /* Dialog action buttons */
+      .dialog-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 1rem;
+      }
+
+      .dialog-actions button {
+        width: 100%;
+        margin: 0;
+      }
+
+      .delete-btn {
+        background: var(--pico-del-color);
+        border-color: var(--pico-del-color);
+      }
+
+      /* Edit form fields */
+      .edit-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .edit-form label {
+        margin-bottom: 0;
+      }
+
+      .edit-form input {
+        margin-bottom: 0;
+      }
+
+      /* Touch drag ghost element */
+      .drag-ghost {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.8;
+        background: var(--pico-card-background-color);
+        border-radius: 0.5rem;
+        padding: 0.6rem 0.8rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Drop indicator line */
+      .drop-indicator {
+        height: 2px;
+        background: var(--pico-primary);
+        border-radius: 1px;
+        margin: -1px 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container rankit-container">
+
+      <!-- Lists view -->
+      <div class="view active" id="lists-view">
+        <div class="rankit-header">
+          <h1>Rank it</h1>
+          <button class="header-btn" id="add-list-btn" aria-label="Add list">+</button>
+        </div>
+        <ul class="card-list" id="lists-container"></ul>
+        <p class="empty-state" id="lists-empty" hidden>
+          No lists yet. Tap + to create one.
+        </p>
+      </div>
+
+      <!-- Items view -->
+      <div class="view" id="items-view">
+        <div class="rankit-header">
+          <button class="back-btn secondary" id="back-btn" aria-label="Back">&larr;</button>
+          <h1 id="items-title" style="flex:1; margin-left:0.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></h1>
+          <button class="header-btn" id="add-item-btn" aria-label="Add item">+</button>
+        </div>
+        <ul class="card-list" id="items-container"></ul>
+        <p class="empty-state" id="items-empty" hidden>
+          No items yet. Tap + to add one.
+        </p>
+      </div>
+
+    </main>
+
+    <!-- Add/Rename list dialog -->
+    <dialog id="list-dialog">
+      <article>
+        <header>
+          <h3 id="list-dialog-title">New List</h3>
+        </header>
+        <div class="edit-form">
+          <label for="list-name-input">Name</label>
+          <input type="text" id="list-name-input" placeholder="List name" />
+        </div>
+        <div class="dialog-actions">
+          <button id="list-dialog-save">Save</button>
+          <button class="secondary" id="list-dialog-cancel">Cancel</button>
+        </div>
+      </article>
+    </dialog>
+
+    <!-- List options dialog (rename/delete) -->
+    <dialog id="list-options-dialog">
+      <article>
+        <header>
+          <h3 id="list-options-title">List Options</h3>
+        </header>
+        <div class="dialog-actions">
+          <button id="list-rename-btn">Rename</button>
+          <button class="delete-btn" id="list-delete-btn">Delete</button>
+          <button class="secondary" id="list-options-cancel">Close</button>
+        </div>
+      </article>
+    </dialog>
+
+    <!-- Add/Rename item dialog -->
+    <dialog id="item-dialog">
+      <article>
+        <header>
+          <h3 id="item-dialog-title">New Item</h3>
+        </header>
+        <div class="edit-form">
+          <label for="item-text-input">Item</label>
+          <input type="text" id="item-text-input" placeholder="Item text" />
+        </div>
+        <div class="dialog-actions">
+          <button id="item-dialog-save">Save</button>
+          <button class="secondary" id="item-dialog-cancel">Cancel</button>
+        </div>
+      </article>
+    </dialog>
+
+    <script>
+      /* ========================================
+         Constants and Storage
+      ======================================== */
+      var STORAGE_KEY = 'rankit_lists';
+
+      /* Load all lists from localStorage */
+      function loadLists() {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      }
+
+      /* Persist all lists to localStorage */
+      function saveLists(lists) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
+      }
+
+      /* Generate a simple unique id */
+      function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      }
+
+      /* Escape HTML to prevent XSS */
+      function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      /* ========================================
+         State
+      ======================================== */
+      var currentListId = null;    // currently selected list
+      var editingListId = null;    // list being renamed
+      var editingItemId = null;    // item being renamed
+      var optionsListId = null;    // list shown in options dialog
+
+      /* ========================================
+         DOM References
+      ======================================== */
+      var listsView = document.getElementById('lists-view');
+      var itemsView = document.getElementById('items-view');
+      var listsContainer = document.getElementById('lists-container');
+      var listsEmpty = document.getElementById('lists-empty');
+      var itemsContainer = document.getElementById('items-container');
+      var itemsEmpty = document.getElementById('items-empty');
+      var itemsTitle = document.getElementById('items-title');
+
+      /* Dialogs */
+      var listDialog = document.getElementById('list-dialog');
+      var listDialogTitle = document.getElementById('list-dialog-title');
+      var listNameInput = document.getElementById('list-name-input');
+      var listDialogSave = document.getElementById('list-dialog-save');
+      var listDialogCancel = document.getElementById('list-dialog-cancel');
+
+      var listOptionsDialog = document.getElementById('list-options-dialog');
+      var listOptionsTitle = document.getElementById('list-options-title');
+      var listRenameBtn = document.getElementById('list-rename-btn');
+      var listDeleteBtn = document.getElementById('list-delete-btn');
+      var listOptionsCancel = document.getElementById('list-options-cancel');
+
+      var itemDialog = document.getElementById('item-dialog');
+      var itemDialogTitle = document.getElementById('item-dialog-title');
+      var itemTextInput = document.getElementById('item-text-input');
+      var itemDialogSave = document.getElementById('item-dialog-save');
+      var itemDialogCancel = document.getElementById('item-dialog-cancel');
+
+      /* ========================================
+         View Switching
+      ======================================== */
+
+      /* Show the lists overview */
+      function showListsView() {
+        currentListId = null;
+        listsView.classList.add('active');
+        itemsView.classList.remove('active');
+        renderLists();
+      }
+
+      /* Show the items view for a specific list */
+      function showItemsView(listId) {
+        currentListId = listId;
+        listsView.classList.remove('active');
+        itemsView.classList.add('active');
+        renderItems();
+      }
+
+      /* ========================================
+         Lists View Rendering
+      ======================================== */
+
+      /* Render all lists as cards */
+      function renderLists() {
+        var lists = loadLists();
+        listsContainer.innerHTML = '';
+
+        if (lists.length === 0) {
+          listsEmpty.hidden = false;
+          return;
+        }
+
+        listsEmpty.hidden = true;
+
+        lists.forEach(function(list) {
+          var li = document.createElement('li');
+          li.className = 'list-card';
+          li.dataset.id = list.id;
+
+          var itemCount = list.items ? list.items.length : 0;
+          var countLabel = itemCount === 1 ? '1 item' : itemCount + ' items';
+
+          li.innerHTML =
+            '<span class="list-card-name">' + escapeHtml(list.name) + '</span>' +
+            '<span class="list-card-count">' + countLabel + '</span>';
+
+          /* Tap to open list */
+          li.addEventListener('click', function() {
+            showItemsView(list.id);
+          });
+
+          /* Long press to show options */
+          var longPressTimer = null;
+          li.addEventListener('pointerdown', function(e) {
+            longPressTimer = setTimeout(function() {
+              e.preventDefault();
+              openListOptions(list.id);
+            }, 500);
+          });
+          li.addEventListener('pointerup', function() {
+            clearTimeout(longPressTimer);
+          });
+          li.addEventListener('pointerleave', function() {
+            clearTimeout(longPressTimer);
+          });
+
+          listsContainer.appendChild(li);
+        });
+      }
+
+      /* ========================================
+         Items View Rendering
+      ======================================== */
+
+      /* Render all items in the current list */
+      function renderItems() {
+        var lists = loadLists();
+        var list = lists.find(function(l) { return l.id === currentListId; });
+        if (!list) return;
+
+        itemsTitle.textContent = list.name;
+        itemsContainer.innerHTML = '';
+
+        if (!list.items || list.items.length === 0) {
+          itemsEmpty.hidden = false;
+          return;
+        }
+
+        itemsEmpty.hidden = true;
+
+        list.items.forEach(function(item, index) {
+          var li = document.createElement('li');
+          li.className = 'item-card';
+          li.dataset.id = item.id;
+          li.dataset.index = index;
+          li.draggable = true;
+
+          li.innerHTML =
+            '<span class="drag-handle" title="Drag to reorder">&#9776;</span>' +
+            '<span class="item-rank">#' + (index + 1) + '</span>' +
+            '<span class="item-text">' + escapeHtml(item.text) + '</span>' +
+            '<div class="item-actions">' +
+              '<button class="item-action-btn move-up" title="Move up" ' +
+                (index === 0 ? 'disabled' : '') + '>&#9650;</button>' +
+              '<button class="item-action-btn move-down" title="Move down" ' +
+                (index === list.items.length - 1 ? 'disabled' : '') + '>&#9660;</button>' +
+              '<button class="item-action-btn delete-item" title="Remove">&times;</button>' +
+            '</div>';
+
+          /* Tap item text to rename */
+          li.querySelector('.item-text').addEventListener('click', function() {
+            openRenameItemDialog(item.id, item.text);
+          });
+
+          /* Move up */
+          li.querySelector('.move-up').addEventListener('click', function(e) {
+            e.stopPropagation();
+            moveItem(item.id, -1);
+          });
+
+          /* Move down */
+          li.querySelector('.move-down').addEventListener('click', function(e) {
+            e.stopPropagation();
+            moveItem(item.id, 1);
+          });
+
+          /* Delete */
+          li.querySelector('.delete-item').addEventListener('click', function(e) {
+            e.stopPropagation();
+            removeItem(item.id);
+          });
+
+          /* Desktop drag-and-drop */
+          li.addEventListener('dragstart', handleDragStart);
+          li.addEventListener('dragover', handleDragOver);
+          li.addEventListener('dragleave', handleDragLeave);
+          li.addEventListener('drop', handleDrop);
+          li.addEventListener('dragend', handleDragEnd);
+
+          itemsContainer.appendChild(li);
+        });
+
+        /* Touch drag-and-drop setup */
+        setupTouchDrag();
+      }
+
+      /* ========================================
+         List CRUD Operations
+      ======================================== */
+
+      /* Open dialog to create a new list */
+      function openAddListDialog() {
+        editingListId = null;
+        listDialogTitle.textContent = 'New List';
+        listNameInput.value = '';
+        listDialog.showModal();
+        listNameInput.focus();
+      }
+
+      /* Open dialog to rename a list */
+      function openRenameListDialog(listId) {
+        var lists = loadLists();
+        var list = lists.find(function(l) { return l.id === listId; });
+        if (!list) return;
+
+        editingListId = listId;
+        listDialogTitle.textContent = 'Rename List';
+        listNameInput.value = list.name;
+        listDialog.showModal();
+        listNameInput.focus();
+        listNameInput.select();
+      }
+
+      /* Save list (create or rename) */
+      function saveList() {
+        var name = listNameInput.value.trim();
+        if (!name) return;
+
+        var lists = loadLists();
+
+        if (editingListId) {
+          /* Rename existing list */
+          var list = lists.find(function(l) { return l.id === editingListId; });
+          if (list) {
+            list.name = name;
+          }
+        } else {
+          /* Create new list */
+          lists.push({
+            id: generateId(),
+            name: name,
+            items: []
+          });
+        }
+
+        saveLists(lists);
+        listDialog.close();
+
+        /* Refresh the appropriate view */
+        if (currentListId) {
+          renderItems();
+        } else {
+          renderLists();
+        }
+      }
+
+      /* Open list options dialog (rename/delete) */
+      function openListOptions(listId) {
+        var lists = loadLists();
+        var list = lists.find(function(l) { return l.id === listId; });
+        if (!list) return;
+
+        optionsListId = listId;
+        listOptionsTitle.textContent = list.name;
+        listOptionsDialog.showModal();
+      }
+
+      /* Delete a list */
+      function deleteList(listId) {
+        if (!confirm('Delete this list and all its items?')) return;
+
+        var lists = loadLists();
+        lists = lists.filter(function(l) { return l.id !== listId; });
+        saveLists(lists);
+
+        listOptionsDialog.close();
+        renderLists();
+      }
+
+      /* ========================================
+         Item CRUD Operations
+      ======================================== */
+
+      /* Open dialog to add a new item */
+      function openAddItemDialog() {
+        editingItemId = null;
+        itemDialogTitle.textContent = 'New Item';
+        itemTextInput.value = '';
+        itemDialog.showModal();
+        itemTextInput.focus();
+      }
+
+      /* Open dialog to rename an item */
+      function openRenameItemDialog(itemId, currentText) {
+        editingItemId = itemId;
+        itemDialogTitle.textContent = 'Rename Item';
+        itemTextInput.value = currentText;
+        itemDialog.showModal();
+        itemTextInput.focus();
+        itemTextInput.select();
+      }
+
+      /* Save item (create or rename) */
+      function saveItem() {
+        var text = itemTextInput.value.trim();
+        if (!text) return;
+
+        var lists = loadLists();
+        var list = lists.find(function(l) { return l.id === currentListId; });
+        if (!list) return;
+
+        if (editingItemId) {
+          /* Rename existing item */
+          var item = list.items.find(function(i) { return i.id === editingItemId; });
+          if (item) {
+            item.text = text;
+          }
+        } else {
+          /* Add new item at the end */
+          if (!list.items) list.items = [];
+          list.items.push({
+            id: generateId(),
+            text: text
+          });
+        }
+
+        saveLists(lists);
+        itemDialog.close();
+        renderItems();
+      }
+
+      /* Remove an item from the current list */
+      function removeItem(itemId) {
+        var lists = loadLists();
+        var list = lists.find(function(l) { return l.id === currentListId; });
+        if (!list) return;
+
+        list.items = list.items.filter(function(i) { return i.id !== itemId; });
+        saveLists(lists);
+        renderItems();
+      }
+
+      /* Move an item up or down by a given direction (-1 or +1) */
+      function moveItem(itemId, direction) {
+        var lists = loadLists();
+        var list = lists.find(function(l) { return l.id === currentListId; });
+        if (!list || !list.items) return;
+
+        var index = list.items.findIndex(function(i) { return i.id === itemId; });
+        if (index === -1) return;
+
+        var newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= list.items.length) return;
+
+        /* Swap items */
+        var temp = list.items[index];
+        list.items[index] = list.items[newIndex];
+        list.items[newIndex] = temp;
+
+        saveLists(lists);
+        renderItems();
+      }
+
+      /* Reorder item from one index to another */
+      function reorderItem(fromIndex, toIndex) {
+        if (fromIndex === toIndex) return;
+
+        var lists = loadLists();
+        var list = lists.find(function(l) { return l.id === currentListId; });
+        if (!list || !list.items) return;
+
+        var item = list.items.splice(fromIndex, 1)[0];
+        list.items.splice(toIndex, 0, item);
+
+        saveLists(lists);
+        renderItems();
+      }
+
+      /* ========================================
+         Desktop Drag-and-Drop
+      ======================================== */
+      var dragSourceIndex = null;
+
+      function handleDragStart(e) {
+        dragSourceIndex = parseInt(this.dataset.index);
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.index);
+      }
+
+      function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+      }
+
+      function handleDragLeave() {
+        this.classList.remove('drag-over');
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        var toIndex = parseInt(this.dataset.index);
+        if (dragSourceIndex !== null && dragSourceIndex !== toIndex) {
+          reorderItem(dragSourceIndex, toIndex);
+        }
+      }
+
+      function handleDragEnd() {
+        this.classList.remove('dragging');
+        dragSourceIndex = null;
+        /* Clean up all drag-over states */
+        itemsContainer.querySelectorAll('.drag-over').forEach(function(el) {
+          el.classList.remove('drag-over');
+        });
+      }
+
+      /* ========================================
+         Touch Drag-and-Drop
+      ======================================== */
+      var touchDragItem = null;
+      var touchGhost = null;
+      var touchStartY = 0;
+      var touchCurrentIndex = null;
+      var touchTargetIndex = null;
+
+      function setupTouchDrag() {
+        var handles = itemsContainer.querySelectorAll('.drag-handle');
+        handles.forEach(function(handle) {
+          handle.addEventListener('touchstart', onTouchDragStart, { passive: false });
+        });
+      }
+
+      function onTouchDragStart(e) {
+        e.preventDefault();
+        var card = this.closest('.item-card');
+        if (!card) return;
+
+        touchDragItem = card;
+        touchCurrentIndex = parseInt(card.dataset.index);
+        touchTargetIndex = touchCurrentIndex;
+        touchStartY = e.touches[0].clientY;
+
+        /* Create ghost element */
+        touchGhost = document.createElement('div');
+        touchGhost.className = 'drag-ghost';
+        touchGhost.textContent = card.querySelector('.item-text').textContent;
+        var rect = card.getBoundingClientRect();
+        touchGhost.style.width = rect.width + 'px';
+        touchGhost.style.left = rect.left + 'px';
+        touchGhost.style.top = e.touches[0].clientY - 20 + 'px';
+        document.body.appendChild(touchGhost);
+
+        card.classList.add('dragging');
+
+        document.addEventListener('touchmove', onTouchDragMove, { passive: false });
+        document.addEventListener('touchend', onTouchDragEnd);
+      }
+
+      function onTouchDragMove(e) {
+        e.preventDefault();
+        if (!touchGhost) return;
+
+        var touchY = e.touches[0].clientY;
+        touchGhost.style.top = touchY - 20 + 'px';
+
+        /* Determine which card we're over */
+        var cards = itemsContainer.querySelectorAll('.item-card');
+        cards.forEach(function(card) {
+          card.classList.remove('drag-over');
+        });
+
+        touchTargetIndex = touchCurrentIndex;
+        cards.forEach(function(card) {
+          var rect = card.getBoundingClientRect();
+          var midY = rect.top + rect.height / 2;
+          if (touchY > midY) {
+            touchTargetIndex = parseInt(card.dataset.index);
+          }
+        });
+
+        /* Show drop indicator on target */
+        if (touchTargetIndex !== touchCurrentIndex) {
+          var targetCard = itemsContainer.querySelector('[data-index="' + touchTargetIndex + '"]');
+          if (targetCard) {
+            targetCard.classList.add('drag-over');
+          }
+        }
+      }
+
+      function onTouchDragEnd() {
+        document.removeEventListener('touchmove', onTouchDragMove);
+        document.removeEventListener('touchend', onTouchDragEnd);
+
+        /* Clean up ghost */
+        if (touchGhost) {
+          touchGhost.remove();
+          touchGhost = null;
+        }
+
+        /* Clean up dragging state */
+        if (touchDragItem) {
+          touchDragItem.classList.remove('dragging');
+        }
+
+        /* Perform reorder */
+        if (touchCurrentIndex !== null && touchTargetIndex !== null &&
+            touchCurrentIndex !== touchTargetIndex) {
+          reorderItem(touchCurrentIndex, touchTargetIndex);
+        }
+
+        /* Reset */
+        itemsContainer.querySelectorAll('.drag-over').forEach(function(el) {
+          el.classList.remove('drag-over');
+        });
+        touchDragItem = null;
+        touchCurrentIndex = null;
+        touchTargetIndex = null;
+      }
+
+      /* ========================================
+         Event Listeners
+      ======================================== */
+
+      function setupEventListeners() {
+        /* Add list button */
+        document.getElementById('add-list-btn').addEventListener('click', openAddListDialog);
+
+        /* Back button */
+        document.getElementById('back-btn').addEventListener('click', showListsView);
+
+        /* Add item button */
+        document.getElementById('add-item-btn').addEventListener('click', openAddItemDialog);
+
+        /* List dialog */
+        listDialogSave.addEventListener('click', saveList);
+        listDialogCancel.addEventListener('click', function() {
+          listDialog.close();
+        });
+        listNameInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            saveList();
+          }
+        });
+
+        /* List options dialog */
+        listRenameBtn.addEventListener('click', function() {
+          listOptionsDialog.close();
+          openRenameListDialog(optionsListId);
+        });
+        listDeleteBtn.addEventListener('click', function() {
+          deleteList(optionsListId);
+        });
+        listOptionsCancel.addEventListener('click', function() {
+          listOptionsDialog.close();
+        });
+
+        /* Item dialog */
+        itemDialogSave.addEventListener('click', saveItem);
+        itemDialogCancel.addEventListener('click', function() {
+          itemDialog.close();
+        });
+        itemTextInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            saveItem();
+          }
+        });
+
+        /* Close dialogs on backdrop click */
+        listDialog.addEventListener('click', function(e) {
+          if (e.target === listDialog) listDialog.close();
+        });
+        listOptionsDialog.addEventListener('click', function(e) {
+          if (e.target === listOptionsDialog) listOptionsDialog.close();
+        });
+        itemDialog.addEventListener('click', function(e) {
+          if (e.target === itemDialog) itemDialog.close();
+        });
+      }
+
+      /* ========================================
+         Initialization
+      ======================================== */
+
+      function init() {
+        setupEventListeners();
+        renderLists();
+      }
+
+      document.addEventListener('DOMContentLoaded', init);
+    </script>
+  </body>
+</html>
