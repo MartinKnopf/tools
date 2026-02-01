@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#1095c1" />
+    <title>Wheel of Fortune</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="apple-touch-icon" href="../icons/icon-192.png" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <style>
+      /* Layout */
+      .app-container {
+        padding: 1rem 0 6rem;
+      }
+
+      /* Back button */
+      .back-btn {
+        background: none;
+        border: none;
+        color: var(--pico-primary);
+        cursor: pointer;
+        padding: 0;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+      .back-btn:hover {
+        text-decoration: underline;
+      }
+
+      /* Card list shared styles */
+      .card-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .card-item {
+        display: flex;
+        align-items: center;
+        background: var(--pico-card-background-color);
+        border-radius: 0.5rem;
+        padding: 0.6rem 0.8rem;
+        gap: 0.5rem;
+      }
+
+      .card-item .item-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .card-item .item-actions {
+        display: flex;
+        gap: 0.3rem;
+        flex-shrink: 0;
+      }
+
+      .card-item .item-actions button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.2rem 0.4rem;
+        font-size: calc(var(--pico-font-size) * 0.85);
+        border-radius: 0.25rem;
+        color: var(--pico-muted-color);
+      }
+      .card-item .item-actions button:hover {
+        color: var(--pico-color);
+      }
+      .card-item .item-actions .delete-btn:hover {
+        color: var(--pico-del-color);
+      }
+
+      /* Inline rename input */
+      .card-item input.inline-rename {
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        padding: 0.1rem 0.3rem;
+        font-size: inherit;
+        height: auto;
+      }
+
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        color: var(--pico-muted-color);
+        padding: 2rem 0;
+      }
+
+      /* Wheel canvas area */
+      .wheel-wrapper {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        margin: 1rem 0;
+      }
+
+      .wheel-canvas-container {
+        position: relative;
+        display: inline-block;
+      }
+
+      canvas#wheelCanvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+
+      /* Pin / pointer at the top of the wheel */
+      .wheel-pin {
+        position: absolute;
+        top: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 14px solid transparent;
+        border-right: 14px solid transparent;
+        border-top: 28px solid var(--pico-del-color);
+        z-index: 10;
+        filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+      }
+
+      /* Spin button */
+      .spin-btn {
+        display: block;
+        width: 100%;
+        margin: 1rem 0;
+        font-size: 1.1rem;
+      }
+
+      /* Result banner */
+      .result-banner {
+        text-align: center;
+        padding: 1rem;
+        background: var(--pico-primary-background);
+        color: var(--pico-primary-inverse);
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+        font-weight: bold;
+        display: none;
+      }
+      .result-banner.visible {
+        display: block;
+        animation: popIn 0.3s ease-out;
+      }
+
+      @keyframes popIn {
+        0% { transform: scale(0.8); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+
+      /* Highlighted item after spin */
+      .card-item.highlighted {
+        outline: 2px solid var(--pico-primary);
+        background: var(--pico-primary-focus);
+      }
+
+      /* Section heading with action */
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+      .section-header h2 {
+        margin: 0;
+      }
+
+      /* Add form */
+      .add-form {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      .add-form input {
+        flex: 1;
+        margin: 0;
+      }
+      .add-form button {
+        flex-shrink: 0;
+        width: auto;
+        margin: 0;
+      }
+
+      /* Hidden view */
+      .view-hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container app-container">
+
+      <!-- Wheels list view -->
+      <div id="wheelsView">
+        <h1>Wheel of Fortune</h1>
+
+        <div class="add-form">
+          <input type="text" id="newWheelInput" placeholder="New wheel name" aria-label="New wheel name" />
+          <button id="addWheelBtn">Add</button>
+        </div>
+
+        <ul id="wheelsList" class="card-list"></ul>
+        <p id="wheelsEmpty" class="empty-state view-hidden">No wheels yet. Create one above.</p>
+      </div>
+
+      <!-- Single wheel detail view -->
+      <div id="wheelDetailView" class="view-hidden">
+        <button class="back-btn" id="backBtn">&larr; Back</button>
+        <h1 id="wheelTitle"></h1>
+
+        <!-- Result banner -->
+        <div class="result-banner" id="resultBanner"></div>
+
+        <!-- Wheel canvas -->
+        <div class="wheel-wrapper" id="wheelWrapper" class="view-hidden">
+          <div class="wheel-canvas-container">
+            <div class="wheel-pin"></div>
+            <canvas id="wheelCanvas" width="340" height="340"></canvas>
+          </div>
+        </div>
+
+        <!-- Spin button -->
+        <button class="spin-btn" id="spinBtn">Spin!</button>
+
+        <!-- Items section -->
+        <div class="section-header">
+          <h2>Items</h2>
+        </div>
+
+        <div class="add-form">
+          <input type="text" id="newItemInput" placeholder="New item" aria-label="New item" />
+          <button id="addItemBtn">Add</button>
+        </div>
+
+        <ul id="itemsList" class="card-list"></ul>
+        <p id="itemsEmpty" class="empty-state view-hidden">No items yet. Add some above.</p>
+      </div>
+
+    </main>
+
+    <script>
+      /* ===========================
+         Storage helpers
+         =========================== */
+      var STORAGE_KEY = 'wheeloffortune_wheels';
+
+      function loadWheels() {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveWheels(wheels) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(wheels));
+      }
+
+      function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+      }
+
+      function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      /* ===========================
+         State
+         =========================== */
+      var wheels = loadWheels();
+      var currentWheelId = null;
+      var isSpinning = false;
+
+      /* ===========================
+         DOM references
+         =========================== */
+      var wheelsView = document.getElementById('wheelsView');
+      var wheelDetailView = document.getElementById('wheelDetailView');
+      var wheelsList = document.getElementById('wheelsList');
+      var wheelsEmpty = document.getElementById('wheelsEmpty');
+      var newWheelInput = document.getElementById('newWheelInput');
+      var addWheelBtn = document.getElementById('addWheelBtn');
+      var backBtn = document.getElementById('backBtn');
+      var wheelTitle = document.getElementById('wheelTitle');
+      var resultBanner = document.getElementById('resultBanner');
+      var wheelWrapper = document.getElementById('wheelWrapper');
+      var wheelCanvas = document.getElementById('wheelCanvas');
+      var spinBtn = document.getElementById('spinBtn');
+      var itemsList = document.getElementById('itemsList');
+      var itemsEmpty = document.getElementById('itemsEmpty');
+      var newItemInput = document.getElementById('newItemInput');
+      var addItemBtn = document.getElementById('addItemBtn');
+
+      /* ===========================
+         Color palette for wheel segments
+         =========================== */
+      var COLORS = [
+        '#e74c3c', '#3498db', '#2ecc71', '#f39c12',
+        '#9b59b6', '#1abc9c', '#e67e22', '#2980b9',
+        '#27ae60', '#c0392b', '#8e44ad', '#16a085',
+        '#d35400', '#f1c40f', '#7f8c8d', '#2c3e50'
+      ];
+
+      /* ===========================
+         Wheels list view
+         =========================== */
+      function showWheelsView() {
+        wheelsView.classList.remove('view-hidden');
+        wheelDetailView.classList.add('view-hidden');
+        currentWheelId = null;
+        renderWheelsList();
+      }
+
+      function renderWheelsList() {
+        wheelsList.innerHTML = '';
+
+        if (wheels.length === 0) {
+          wheelsEmpty.classList.remove('view-hidden');
+          return;
+        }
+        wheelsEmpty.classList.add('view-hidden');
+
+        wheels.forEach(function(wheel) {
+          var li = document.createElement('li');
+          li.className = 'card-item';
+          li.innerHTML =
+            '<span class="item-name">' + escapeHtml(wheel.name) + '</span>' +
+            '<span class="item-actions">' +
+              '<button class="rename-btn" title="Rename">&#9998;</button>' +
+              '<button class="delete-btn" title="Delete">&times;</button>' +
+            '</span>';
+
+          // Click name to open wheel
+          li.querySelector('.item-name').style.cursor = 'pointer';
+          li.querySelector('.item-name').addEventListener('click', function() {
+            openWheel(wheel.id);
+          });
+
+          // Rename
+          li.querySelector('.rename-btn').addEventListener('click', function() {
+            startInlineRename(li, wheel.id, wheel.name, 'wheel');
+          });
+
+          // Delete
+          li.querySelector('.delete-btn').addEventListener('click', function() {
+            deleteWheel(wheel.id);
+          });
+
+          wheelsList.appendChild(li);
+        });
+      }
+
+      function addWheel() {
+        var name = newWheelInput.value.trim();
+        if (!name) return;
+
+        wheels.push({
+          id: generateId(),
+          name: name,
+          items: []
+        });
+        saveWheels(wheels);
+        newWheelInput.value = '';
+        renderWheelsList();
+      }
+
+      function deleteWheel(id) {
+        wheels = wheels.filter(function(w) { return w.id !== id; });
+        saveWheels(wheels);
+        renderWheelsList();
+      }
+
+      function openWheel(id) {
+        currentWheelId = id;
+        wheelsView.classList.add('view-hidden');
+        wheelDetailView.classList.remove('view-hidden');
+        renderWheelDetail();
+      }
+
+      /* ===========================
+         Wheel detail view
+         =========================== */
+      function getCurrentWheel() {
+        return wheels.find(function(w) { return w.id === currentWheelId; });
+      }
+
+      function renderWheelDetail() {
+        var wheel = getCurrentWheel();
+        if (!wheel) return showWheelsView();
+
+        wheelTitle.textContent = wheel.name;
+        resultBanner.classList.remove('visible');
+        renderItemsList();
+        drawWheel();
+        updateSpinButton();
+      }
+
+      function updateSpinButton() {
+        var wheel = getCurrentWheel();
+        var hasItems = wheel && wheel.items.length >= 2;
+        spinBtn.disabled = !hasItems || isSpinning;
+        spinBtn.setAttribute('aria-busy', isSpinning ? 'true' : 'false');
+        if (isSpinning) {
+          spinBtn.textContent = 'Spinning...';
+        } else if (!hasItems) {
+          spinBtn.textContent = 'Add at least 2 items';
+        } else {
+          spinBtn.textContent = 'Spin!';
+        }
+      }
+
+      function renderItemsList() {
+        var wheel = getCurrentWheel();
+        if (!wheel) return;
+
+        itemsList.innerHTML = '';
+
+        if (wheel.items.length === 0) {
+          itemsEmpty.classList.remove('view-hidden');
+        } else {
+          itemsEmpty.classList.add('view-hidden');
+        }
+
+        wheel.items.forEach(function(item, index) {
+          var li = document.createElement('li');
+          li.className = 'card-item';
+          li.setAttribute('data-item-id', item.id);
+          li.innerHTML =
+            '<span class="color-dot" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + COLORS[index % COLORS.length] + ';flex-shrink:0;"></span>' +
+            '<span class="item-name">' + escapeHtml(item.name) + '</span>' +
+            '<span class="item-actions">' +
+              '<button class="rename-btn" title="Rename">&#9998;</button>' +
+              '<button class="delete-btn" title="Delete">&times;</button>' +
+            '</span>';
+
+          // Rename
+          li.querySelector('.rename-btn').addEventListener('click', function() {
+            startInlineRename(li, item.id, item.name, 'item');
+          });
+
+          // Delete
+          li.querySelector('.delete-btn').addEventListener('click', function() {
+            deleteItem(item.id);
+          });
+
+          itemsList.appendChild(li);
+        });
+      }
+
+      function addItem() {
+        var wheel = getCurrentWheel();
+        if (!wheel) return;
+
+        var name = newItemInput.value.trim();
+        if (!name) return;
+
+        wheel.items.push({
+          id: generateId(),
+          name: name
+        });
+        saveWheels(wheels);
+        newItemInput.value = '';
+        renderItemsList();
+        drawWheel();
+        updateSpinButton();
+      }
+
+      function deleteItem(itemId) {
+        var wheel = getCurrentWheel();
+        if (!wheel) return;
+
+        wheel.items = wheel.items.filter(function(i) { return i.id !== itemId; });
+        saveWheels(wheels);
+        renderItemsList();
+        drawWheel();
+        updateSpinButton();
+      }
+
+      /* ===========================
+         Inline rename (shared for wheels and items)
+         =========================== */
+      function startInlineRename(li, id, currentName, type) {
+        // Replace card content with an input
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'inline-rename';
+        input.value = currentName;
+
+        var saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save';
+        saveBtn.style.cssText = 'flex-shrink:0;width:auto;margin:0;padding:0.2rem 0.6rem;font-size:inherit;';
+
+        var cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.className = 'secondary outline';
+        cancelBtn.style.cssText = 'flex-shrink:0;width:auto;margin:0;padding:0.2rem 0.6rem;font-size:inherit;';
+
+        li.innerHTML = '';
+        li.appendChild(input);
+        li.appendChild(saveBtn);
+        li.appendChild(cancelBtn);
+        input.focus();
+        input.select();
+
+        function doSave() {
+          var newName = input.value.trim();
+          if (!newName) return;
+
+          if (type === 'wheel') {
+            var wheel = wheels.find(function(w) { return w.id === id; });
+            if (wheel) wheel.name = newName;
+            saveWheels(wheels);
+            renderWheelsList();
+          } else {
+            var wheel = getCurrentWheel();
+            if (!wheel) return;
+            var item = wheel.items.find(function(i) { return i.id === id; });
+            if (item) item.name = newName;
+            saveWheels(wheels);
+            renderItemsList();
+            drawWheel();
+            // Also update the title if we renamed the wheel from detail view
+            wheelTitle.textContent = getCurrentWheel().name;
+          }
+        }
+
+        function doCancel() {
+          if (type === 'wheel') {
+            renderWheelsList();
+          } else {
+            renderItemsList();
+          }
+        }
+
+        saveBtn.addEventListener('click', doSave);
+        cancelBtn.addEventListener('click', doCancel);
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') doSave();
+          if (e.key === 'Escape') doCancel();
+        });
+      }
+
+      /* ===========================
+         Canvas wheel drawing
+         =========================== */
+      var currentRotation = 0; // persisted rotation angle in radians
+
+      function drawWheel(rotation) {
+        var wheel = getCurrentWheel();
+        if (!wheel || wheel.items.length === 0) {
+          // Draw empty wheel
+          var ctx = wheelCanvas.getContext('2d');
+          var size = wheelCanvas.width;
+          var center = size / 2;
+          var radius = center - 10;
+          ctx.clearRect(0, 0, size, size);
+          ctx.beginPath();
+          ctx.arc(center, center, radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#ccc';
+          ctx.fill();
+          ctx.strokeStyle = '#999';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          return;
+        }
+
+        if (rotation !== undefined) {
+          currentRotation = rotation;
+        }
+
+        var items = wheel.items;
+        var count = items.length;
+        var ctx = wheelCanvas.getContext('2d');
+        var size = wheelCanvas.width;
+        var center = size / 2;
+        var radius = center - 10;
+        var sliceAngle = (Math.PI * 2) / count;
+
+        ctx.clearRect(0, 0, size, size);
+
+        // Draw segments
+        for (var i = 0; i < count; i++) {
+          var startAngle = currentRotation + i * sliceAngle;
+          var endAngle = startAngle + sliceAngle;
+
+          // Fill segment
+          ctx.beginPath();
+          ctx.moveTo(center, center);
+          ctx.arc(center, center, radius, startAngle, endAngle);
+          ctx.closePath();
+          ctx.fillStyle = COLORS[i % COLORS.length];
+          ctx.fill();
+
+          // Segment border
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Draw label
+          ctx.save();
+          ctx.translate(center, center);
+          ctx.rotate(startAngle + sliceAngle / 2);
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold ' + Math.max(11, Math.min(16, Math.floor(160 / count))) + 'px sans-serif';
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 3;
+
+          // Truncate label if needed
+          var label = items[i].name;
+          var maxWidth = radius - 25;
+          if (ctx.measureText(label).width > maxWidth) {
+            while (label.length > 1 && ctx.measureText(label + '...').width > maxWidth) {
+              label = label.slice(0, -1);
+            }
+            label += '...';
+          }
+
+          ctx.fillText(label, radius - 15, 5);
+          ctx.shadowBlur = 0;
+          ctx.restore();
+        }
+
+        // Draw center circle
+        ctx.beginPath();
+        ctx.arc(center, center, 18, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      /* ===========================
+         Spin animation
+         =========================== */
+      function spinWheel() {
+        var wheel = getCurrentWheel();
+        if (!wheel || wheel.items.length < 2 || isSpinning) return;
+
+        isSpinning = true;
+        updateSpinButton();
+        resultBanner.classList.remove('visible');
+
+        // Clear previous highlights
+        var highlighted = itemsList.querySelectorAll('.highlighted');
+        for (var i = 0; i < highlighted.length; i++) {
+          highlighted[i].classList.remove('highlighted');
+        }
+
+        var count = wheel.items.length;
+        var sliceAngle = (Math.PI * 2) / count;
+
+        // Random total spin: at least 5 full rotations + random extra
+        var extraAngle = Math.random() * Math.PI * 2;
+        var totalSpin = Math.PI * 2 * (5 + Math.random() * 5) + extraAngle;
+
+        var startRotation = currentRotation;
+        var targetRotation = startRotation + totalSpin;
+
+        var duration = 5000; // 5 seconds
+        var startTime = null;
+
+        function easeOutCubic(t) {
+          return 1 - Math.pow(1 - t, 3);
+        }
+
+        function animate(timestamp) {
+          if (!startTime) startTime = timestamp;
+          var elapsed = timestamp - startTime;
+          var progress = Math.min(elapsed / duration, 1);
+
+          // Apply easing for decreasing velocity
+          var easedProgress = easeOutCubic(progress);
+          var angle = startRotation + totalSpin * easedProgress;
+
+          drawWheel(angle);
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            // Spin complete - determine winner
+            isSpinning = false;
+            updateSpinButton();
+
+            // Normalize rotation
+            currentRotation = angle % (Math.PI * 2);
+
+            // The pin is at the top (270 degrees / -PI/2)
+            // Determine which segment is at the top
+            var pinAngle = -Math.PI / 2;
+            // Normalize: find the angle relative to rotation
+            var relAngle = (pinAngle - currentRotation) % (Math.PI * 2);
+            if (relAngle < 0) relAngle += Math.PI * 2;
+
+            var winnerIndex = Math.floor(relAngle / sliceAngle);
+            if (winnerIndex >= count) winnerIndex = 0;
+
+            var winner = wheel.items[winnerIndex];
+
+            // Show result banner
+            resultBanner.textContent = winner.name;
+            resultBanner.classList.add('visible');
+
+            // Highlight the item in the list
+            var itemCards = itemsList.querySelectorAll('.card-item');
+            for (var j = 0; j < itemCards.length; j++) {
+              if (itemCards[j].getAttribute('data-item-id') === winner.id) {
+                itemCards[j].classList.add('highlighted');
+                itemCards[j].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                break;
+              }
+            }
+          }
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      /* ===========================
+         Event listeners
+         =========================== */
+
+      // Add wheel
+      addWheelBtn.addEventListener('click', addWheel);
+      newWheelInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') addWheel();
+      });
+
+      // Back button
+      backBtn.addEventListener('click', showWheelsView);
+
+      // Add item
+      addItemBtn.addEventListener('click', addItem);
+      newItemInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') addItem();
+      });
+
+      // Spin
+      spinBtn.addEventListener('click', spinWheel);
+
+      /* ===========================
+         Initialize
+         =========================== */
+      showWheelsView();
+    </script>
+  </body>
+</html>
