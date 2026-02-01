@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Parrot</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <style>
+      /* ========================================
+         Layout
+      ======================================== */
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100dvh;
+        margin: 0;
+        overflow: hidden;
+        background: #1a1a2e;
+        color: #e0e0e0;
+      }
+
+      .parrot-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+        text-align: center;
+        padding: 2rem;
+      }
+
+      /* ========================================
+         Parrot Indicator
+      ======================================== */
+      .parrot {
+        font-size: 8rem;
+        line-height: 1;
+        transition: transform 0.2s ease, filter 0.2s ease;
+        filter: grayscale(0.8) brightness(0.6);
+        user-select: none;
+      }
+
+      .parrot.listening {
+        filter: grayscale(0.4) brightness(0.8);
+        animation: bob 1.5s ease-in-out infinite;
+      }
+
+      .parrot.recording {
+        filter: grayscale(0) brightness(1);
+        animation: bounce 0.4s ease-in-out infinite;
+      }
+
+      .parrot.playing {
+        filter: grayscale(0) brightness(1) hue-rotate(20deg);
+        animation: dance 0.3s ease-in-out infinite alternate;
+      }
+
+      /* ========================================
+         Animations
+      ======================================== */
+      @keyframes bob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+      }
+
+      @keyframes bounce {
+        0%, 100% { transform: scale(1) translateY(0); }
+        50% { transform: scale(1.08) translateY(-10px); }
+      }
+
+      @keyframes dance {
+        0% { transform: rotate(-5deg) scale(1.05); }
+        100% { transform: rotate(5deg) scale(1.1); }
+      }
+
+      /* ========================================
+         Status Text
+      ======================================== */
+      .status {
+        font-size: 1.2rem;
+        min-height: 2em;
+        opacity: 0.85;
+      }
+
+      /* ========================================
+         Volume Meter
+      ======================================== */
+      .volume-bar-container {
+        width: 200px;
+        height: 8px;
+        background: #333;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .volume-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #4caf50, #ff9800, #f44336);
+        border-radius: 4px;
+        transition: width 0.05s linear;
+      }
+
+      /* ========================================
+         Error State
+      ======================================== */
+      .error {
+        color: #f44336;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="parrot-container">
+      <div class="parrot" id="parrot">🦜</div>
+      <div class="status" id="status">Initializing microphone…</div>
+      <div class="volume-bar-container">
+        <div class="volume-bar" id="volume-bar"></div>
+      </div>
+    </main>
+
+    <script>
+      (function () {
+        'use strict';
+
+        /* ========================================
+           Constants
+        ======================================== */
+        const RECORD_DURATION_MS = 3000;
+        const SPEECH_THRESHOLD = 0.08;       // RMS level to trigger recording
+        const PITCH_SHIFT = 1.5;             // Playback speed multiplier for higher pitch
+        const ANALYSIS_INTERVAL_MS = 50;     // How often to check volume
+
+        /* ========================================
+           DOM References
+        ======================================== */
+        const parrotEl = document.getElementById('parrot');
+        const statusEl = document.getElementById('status');
+        const volumeBar = document.getElementById('volume-bar');
+
+        /* ========================================
+           State
+        ======================================== */
+        let audioContext = null;
+        let analyser = null;
+        let mediaStream = null;
+        let isRecording = false;
+        let isPlaying = false;
+
+        /* ========================================
+           Helpers
+        ======================================== */
+
+        /** Set the visual state of the parrot */
+        function setParrotState(state) {
+          parrotEl.className = 'parrot';
+          if (state) {
+            parrotEl.classList.add(state);
+          }
+        }
+
+        /** Calculate RMS volume from analyser data */
+        function getRMS(dataArray) {
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            const normalized = dataArray[i] / 128.0 - 1.0;
+            sum += normalized * normalized;
+          }
+          return Math.sqrt(sum / dataArray.length);
+        }
+
+        /** Update the volume meter bar */
+        function updateVolumeMeter(rms) {
+          const pct = Math.min(rms / 0.3 * 100, 100);
+          volumeBar.style.width = pct + '%';
+        }
+
+        /* ========================================
+           Audio Recording
+        ======================================== */
+
+        /** Record audio for a fixed duration, returns a Blob */
+        function recordAudio(stream) {
+          return new Promise(function (resolve) {
+            const recorder = new MediaRecorder(stream);
+            const chunks = [];
+
+            recorder.ondataavailable = function (e) {
+              if (e.data.size > 0) {
+                chunks.push(e.data);
+              }
+            };
+
+            recorder.onstop = function () {
+              const blob = new Blob(chunks, { type: recorder.mimeType });
+              resolve(blob);
+            };
+
+            recorder.start();
+
+            setTimeout(function () {
+              if (recorder.state === 'recording') {
+                recorder.stop();
+              }
+            }, RECORD_DURATION_MS);
+          });
+        }
+
+        /** Play back an audio blob with higher pitch using Web Audio API */
+        function playWithHigherPitch(blob) {
+          return new Promise(function (resolve, reject) {
+            const reader = new FileReader();
+
+            reader.onload = function () {
+              const playbackContext = new (window.AudioContext || window.webkitAudioContext)();
+
+              playbackContext.decodeAudioData(reader.result, function (audioBuffer) {
+                const source = playbackContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.playbackRate.value = PITCH_SHIFT;
+                source.connect(playbackContext.destination);
+
+                source.onended = function () {
+                  playbackContext.close();
+                  resolve();
+                };
+
+                source.start(0);
+              }, function (err) {
+                playbackContext.close();
+                reject(err);
+              });
+            };
+
+            reader.onerror = function () {
+              reject(reader.error);
+            };
+
+            reader.readAsArrayBuffer(blob);
+          });
+        }
+
+        /* ========================================
+           Main Loop: Listen → Record → Play → Repeat
+        ======================================== */
+
+        /** Monitor volume and trigger recording when speech is detected */
+        function startListening() {
+          if (isRecording || isPlaying) return;
+
+          setParrotState('listening');
+          statusEl.textContent = 'Listening… speak to start recording!';
+
+          const dataArray = new Uint8Array(analyser.fftSize);
+          let checkInterval = setInterval(function () {
+            /* Stop checking if we transitioned to another state */
+            if (isRecording || isPlaying) {
+              clearInterval(checkInterval);
+              return;
+            }
+
+            analyser.getByteTimeDomainData(dataArray);
+            const rms = getRMS(dataArray);
+            updateVolumeMeter(rms);
+
+            /* Trigger recording when volume exceeds speech threshold */
+            if (rms >= SPEECH_THRESHOLD) {
+              clearInterval(checkInterval);
+              startRecordingCycle();
+            }
+          }, ANALYSIS_INTERVAL_MS);
+        }
+
+        /** Full cycle: record → play back → go back to listening */
+        async function startRecordingCycle() {
+          isRecording = true;
+          setParrotState('recording');
+          statusEl.textContent = 'Recording…';
+
+          try {
+            /* Record for the configured duration */
+            const blob = await recordAudio(mediaStream);
+            isRecording = false;
+
+            /* Play back with higher pitch */
+            isPlaying = true;
+            setParrotState('playing');
+            statusEl.textContent = 'Squawk! Playing back…';
+
+            await playWithHigherPitch(blob);
+          } catch (err) {
+            console.error('Playback error:', err);
+          }
+
+          /* Reset and go back to listening */
+          isPlaying = false;
+          updateVolumeMeter(0);
+          startListening();
+        }
+
+        /* ========================================
+           Initialization
+        ======================================== */
+        async function init() {
+          try {
+            /* Request microphone access */
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            /* Set up audio analysis for volume detection */
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            source.connect(analyser);
+
+            /* Begin the listen → record → play loop */
+            startListening();
+          } catch (err) {
+            console.error('Microphone access error:', err);
+            statusEl.textContent = 'Microphone access denied. Please allow microphone access and reload.';
+            statusEl.classList.add('error');
+            setParrotState(null);
+          }
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>
