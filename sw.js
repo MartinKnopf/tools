@@ -1,13 +1,12 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v7';
+const CACHE_NAME = 'static-tools-v8';
 
 // Files to cache on install
 const PRECACHE_URLS = [
   '/tools/',
   '/tools/index.html',
   '/tools/manifest.json',
-  '/tools/ant/index.html',
-  '/tools/browser/index.htm',
+  '/tools/spidey/index.html',
   '/tools/rank-it/index.html',
   '/tools/sleeptimer/index.html',
   '/tools/streaks/index.html',
