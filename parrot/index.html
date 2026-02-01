@@ -105,6 +105,41 @@
       }
 
       /* ========================================
+         Playback Progress Bar
+      ======================================== */
+      .playback-bar-container {
+        width: 200px;
+        height: 8px;
+        background: #333;
+        border-radius: 4px;
+        overflow: hidden;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      .playback-bar-container.visible {
+        opacity: 1;
+      }
+
+      .playback-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #64b5f6, #ba68c8);
+        border-radius: 4px;
+      }
+
+      .playback-time {
+        font-size: 0.9rem;
+        opacity: 0;
+        min-height: 1.4em;
+        transition: opacity 0.2s ease;
+      }
+
+      .playback-time.visible {
+        opacity: 0.7;
+      }
+
+      /* ========================================
          Error State
       ======================================== */
       .error {
@@ -119,6 +154,10 @@
       <div class="volume-bar-container">
         <div class="volume-bar" id="volume-bar"></div>
       </div>
+      <div class="playback-bar-container" id="playback-bar-container">
+        <div class="playback-bar" id="playback-bar"></div>
+      </div>
+      <div class="playback-time" id="playback-time"></div>
     </main>
 
     <script>
@@ -128,8 +167,8 @@
         /* ========================================
            Constants
         ======================================== */
-        const RECORD_DURATION_MS = 3000;
-        const SPEECH_THRESHOLD = 0.08;       // RMS level to trigger recording
+        const SPEECH_THRESHOLD = 0.15;       // RMS level to trigger/sustain recording
+        const SILENCE_TIMEOUT_MS = 1000;     // Stop recording after this long below threshold
         const PITCH_SHIFT = 1.5;             // Playback speed multiplier for higher pitch
         const ANALYSIS_INTERVAL_MS = 50;     // How often to check volume
 
@@ -139,6 +178,9 @@
         const parrotEl = document.getElementById('parrot');
         const statusEl = document.getElementById('status');
         const volumeBar = document.getElementById('volume-bar');
+        const playbackBarContainer = document.getElementById('playback-bar-container');
+        const playbackBar = document.getElementById('playback-bar');
+        const playbackTimeEl = document.getElementById('playback-time');
 
         /* ========================================
            State
@@ -181,11 +223,13 @@
            Audio Recording
         ======================================== */
 
-        /** Record audio for a fixed duration, returns a Blob */
+        /** Record audio until silence persists for SILENCE_TIMEOUT_MS, returns a Blob */
         function recordAudio(stream) {
           return new Promise(function (resolve) {
             const recorder = new MediaRecorder(stream);
             const chunks = [];
+            const dataArray = new Uint8Array(analyser.fftSize);
+            let silenceStart = null;
 
             recorder.ondataavailable = function (e) {
               if (e.data.size > 0) {
@@ -200,12 +244,53 @@
 
             recorder.start();
 
-            setTimeout(function () {
-              if (recorder.state === 'recording') {
-                recorder.stop();
+            /* Monitor volume while recording; stop after sustained silence */
+            var silenceCheck = setInterval(function () {
+              if (recorder.state !== 'recording') {
+                clearInterval(silenceCheck);
+                return;
               }
-            }, RECORD_DURATION_MS);
+
+              analyser.getByteTimeDomainData(dataArray);
+              var rms = getRMS(dataArray);
+              updateVolumeMeter(rms);
+
+              if (rms < SPEECH_THRESHOLD) {
+                if (silenceStart === null) {
+                  silenceStart = Date.now();
+                } else if (Date.now() - silenceStart >= SILENCE_TIMEOUT_MS) {
+                  clearInterval(silenceCheck);
+                  recorder.stop();
+                }
+              } else {
+                /* Voice detected again, reset silence timer */
+                silenceStart = null;
+              }
+            }, ANALYSIS_INTERVAL_MS);
           });
+        }
+
+        /** Format seconds as m:ss or s.s */
+        function formatTime(seconds) {
+          if (seconds < 10) {
+            return seconds.toFixed(1) + 's';
+          }
+          var m = Math.floor(seconds / 60);
+          var s = Math.floor(seconds % 60);
+          return m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        /** Show/hide playback progress UI */
+        function setPlaybackUIVisible(visible) {
+          if (visible) {
+            playbackBarContainer.classList.add('visible');
+            playbackTimeEl.classList.add('visible');
+          } else {
+            playbackBarContainer.classList.remove('visible');
+            playbackTimeEl.classList.remove('visible');
+            playbackBar.style.width = '0%';
+            playbackTimeEl.textContent = '';
+          }
         }
 
         /** Play back an audio blob with higher pitch using Web Audio API */
@@ -217,18 +302,42 @@
               const playbackContext = new (window.AudioContext || window.webkitAudioContext)();
 
               playbackContext.decodeAudioData(reader.result, function (audioBuffer) {
+                /* Playback duration is shortened by the pitch shift */
+                const playbackDuration = audioBuffer.duration / PITCH_SHIFT;
+
                 const source = playbackContext.createBufferSource();
                 source.buffer = audioBuffer;
                 source.playbackRate.value = PITCH_SHIFT;
                 source.connect(playbackContext.destination);
 
+                /* Show playback progress bar and time */
+                setPlaybackUIVisible(true);
+                playbackTimeEl.textContent = '0.0s / ' + formatTime(playbackDuration);
+
+                const startTime = Date.now();
+                var progressInterval = setInterval(function () {
+                  var elapsed = (Date.now() - startTime) / 1000;
+                  var pct = Math.min(elapsed / playbackDuration * 100, 100);
+                  playbackBar.style.width = pct + '%';
+                  playbackTimeEl.textContent = formatTime(Math.min(elapsed, playbackDuration)) + ' / ' + formatTime(playbackDuration);
+                }, 50);
+
                 source.onended = function () {
-                  playbackContext.close();
-                  resolve();
+                  clearInterval(progressInterval);
+                  playbackBar.style.width = '100%';
+                  playbackTimeEl.textContent = formatTime(playbackDuration) + ' / ' + formatTime(playbackDuration);
+
+                  /* Brief pause before hiding so user sees completion */
+                  setTimeout(function () {
+                    setPlaybackUIVisible(false);
+                    playbackContext.close();
+                    resolve();
+                  }, 400);
                 };
 
                 source.start(0);
               }, function (err) {
+                setPlaybackUIVisible(false);
                 playbackContext.close();
                 reject(err);
               });
