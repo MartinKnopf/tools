@@ -173,6 +173,7 @@
         const PITCH_SHIFT = 1.5;             // Playback speed multiplier for higher pitch
         const ANALYSIS_INTERVAL_MS = 50;     // How often to check volume
         const PRE_BUFFER_MS = 300;           // Audio to keep before speech detection
+        const TRIM_START_MS = 300;           // Trim this much from the start of each clip
         const TIMESLICE_MS = 100;            // MediaRecorder chunk interval
         const PRE_BUFFER_CHUNKS = Math.ceil(PRE_BUFFER_MS / TIMESLICE_MS);
 
@@ -329,15 +330,46 @@
           }
         }
 
+        /** Trim leading samples from an AudioBuffer */
+        function trimStart(audioBuffer, trimMs, ctx) {
+          var trimSamples = Math.floor(trimMs / 1000 * audioBuffer.sampleRate);
+          var newLength = audioBuffer.length - trimSamples;
+          if (newLength <= 0) return audioBuffer; // nothing to trim
+
+          var trimmed = ctx.createBuffer(
+            audioBuffer.numberOfChannels,
+            newLength,
+            audioBuffer.sampleRate
+          );
+          for (var ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+            var src = audioBuffer.getChannelData(ch);
+            var dst = trimmed.getChannelData(ch);
+            for (var i = 0; i < newLength; i++) {
+              dst[i] = src[i + trimSamples];
+            }
+          }
+          return trimmed;
+        }
+
         /** Play back an audio blob with higher pitch using Web Audio API */
         function playWithHigherPitch(blob) {
-          return new Promise(function (resolve, reject) {
+          return new Promise(function (resolve) {
+            var resolved = false;
+            function done() {
+              if (resolved) return;
+              resolved = true;
+              resolve();
+            }
+
             const reader = new FileReader();
 
             reader.onload = function () {
               const playbackContext = new (window.AudioContext || window.webkitAudioContext)();
 
-              playbackContext.decodeAudioData(reader.result, function (audioBuffer) {
+              playbackContext.decodeAudioData(reader.result, function (raw) {
+                /* Trim leading audio (removes pre-buffer silence) */
+                var audioBuffer = trimStart(raw, TRIM_START_MS, playbackContext);
+
                 /* Playback duration is shortened by the pitch shift */
                 const playbackDuration = audioBuffer.duration / PITCH_SHIFT;
 
@@ -358,29 +390,36 @@
                   playbackTimeEl.textContent = formatTime(Math.min(elapsed, playbackDuration)) + ' / ' + formatTime(playbackDuration);
                 }, 50);
 
-                source.onended = function () {
+                /* Clean up and resolve after playback finishes */
+                function finishPlayback() {
                   clearInterval(progressInterval);
+                  clearTimeout(safetyTimeout);
                   playbackBar.style.width = '100%';
                   playbackTimeEl.textContent = formatTime(playbackDuration) + ' / ' + formatTime(playbackDuration);
 
-                  /* Brief pause before hiding so user sees completion */
                   setTimeout(function () {
                     setPlaybackUIVisible(false);
                     playbackContext.close();
-                    resolve();
+                    done();
                   }, 400);
-                };
+                }
+
+                source.onended = finishPlayback;
+
+                /* Safety timeout in case onended doesn't fire */
+                var safetyTimeout = setTimeout(finishPlayback, playbackDuration * 1000 + 500);
 
                 source.start(0);
-              }, function (err) {
+              }, function () {
+                /* Decode failed — skip playback, don't stall the cycle */
                 setPlaybackUIVisible(false);
                 playbackContext.close();
-                reject(err);
+                done();
               });
             };
 
             reader.onerror = function () {
-              reject(reader.error);
+              done();
             };
 
             reader.readAsArrayBuffer(blob);
