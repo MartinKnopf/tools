@@ -172,6 +172,9 @@
         const SILENCE_TIMEOUT_MS = 1000;     // Stop recording after this long below silence threshold
         const PITCH_SHIFT = 1.5;             // Playback speed multiplier for higher pitch
         const ANALYSIS_INTERVAL_MS = 50;     // How often to check volume
+        const PRE_BUFFER_MS = 300;           // Audio to keep before speech detection
+        const TIMESLICE_MS = 100;            // MediaRecorder chunk interval
+        const PRE_BUFFER_CHUNKS = Math.ceil(PRE_BUFFER_MS / TIMESLICE_MS);
 
         /* ========================================
            DOM References
@@ -221,34 +224,55 @@
         }
 
         /* ========================================
-           Audio Recording
+           Audio Recording (with pre-buffer)
         ======================================== */
 
-        /** Record audio until silence persists for SILENCE_TIMEOUT_MS, returns a Blob */
-        function recordAudio(stream) {
+        /**
+         * Runs a single listen → record cycle using one MediaRecorder.
+         * During the listening phase, chunks are kept in a rolling pre-buffer.
+         * When speech is detected the pre-buffer is preserved and recording
+         * continues until silence persists for SILENCE_TIMEOUT_MS.
+         * Returns a Blob that includes PRE_BUFFER_MS of audio before speech.
+         */
+        function listenAndRecord(stream) {
           return new Promise(function (resolve) {
             const recorder = new MediaRecorder(stream);
-            const chunks = [];
-            const dataArray = new Uint8Array(analyser.fftSize);
+            const preBuffer = [];       // rolling buffer of recent chunks
+            const recordingChunks = []; // chunks collected after speech detected
+            let phase = 'listening';    // 'listening' or 'recording'
             let silenceStart = null;
+            const dataArray = new Uint8Array(analyser.fftSize);
 
             recorder.ondataavailable = function (e) {
-              if (e.data.size > 0) {
-                chunks.push(e.data);
+              if (e.data.size === 0) return;
+
+              if (phase === 'listening') {
+                preBuffer.push(e.data);
+                if (preBuffer.length > PRE_BUFFER_CHUNKS) {
+                  preBuffer.shift();
+                }
+              } else {
+                recordingChunks.push(e.data);
               }
             };
 
             recorder.onstop = function () {
-              const blob = new Blob(chunks, { type: recorder.mimeType });
+              /* Combine pre-buffer with recorded audio */
+              const allChunks = preBuffer.concat(recordingChunks);
+              const blob = new Blob(allChunks, { type: recorder.mimeType });
               resolve(blob);
             };
 
-            recorder.start();
+            /* Start recorder with timeslice so we get regular chunks */
+            recorder.start(TIMESLICE_MS);
 
-            /* Monitor volume while recording; stop after sustained silence */
-            var silenceCheck = setInterval(function () {
+            setParrotState('listening');
+            statusEl.textContent = 'Listening… speak to start recording!';
+
+            /* Monitor volume to transition between phases */
+            var checkInterval = setInterval(function () {
               if (recorder.state !== 'recording') {
-                clearInterval(silenceCheck);
+                clearInterval(checkInterval);
                 return;
               }
 
@@ -256,16 +280,27 @@
               var rms = getRMS(dataArray);
               updateVolumeMeter(rms);
 
-              if (rms < SILENCE_THRESHOLD) {
-                if (silenceStart === null) {
-                  silenceStart = Date.now();
-                } else if (Date.now() - silenceStart >= SILENCE_TIMEOUT_MS) {
-                  clearInterval(silenceCheck);
-                  recorder.stop();
+              if (phase === 'listening') {
+                /* Wait for speech to start */
+                if (rms >= SPEECH_THRESHOLD) {
+                  phase = 'recording';
+                  isRecording = true;
+                  setParrotState('recording');
+                  statusEl.textContent = 'Recording…';
+                  silenceStart = null;
                 }
               } else {
-                /* Voice detected again, reset silence timer */
-                silenceStart = null;
+                /* Recording phase — stop after sustained silence */
+                if (rms < SILENCE_THRESHOLD) {
+                  if (silenceStart === null) {
+                    silenceStart = Date.now();
+                  } else if (Date.now() - silenceStart >= SILENCE_TIMEOUT_MS) {
+                    clearInterval(checkInterval);
+                    recorder.stop();
+                  }
+                } else {
+                  silenceStart = null;
+                }
               }
             }, ANALYSIS_INTERVAL_MS);
           });
@@ -356,42 +391,11 @@
            Main Loop: Listen → Record → Play → Repeat
         ======================================== */
 
-        /** Monitor volume and trigger recording when speech is detected */
-        function startListening() {
-          if (isRecording || isPlaying) return;
-
-          setParrotState('listening');
-          statusEl.textContent = 'Listening… speak to start recording!';
-
-          const dataArray = new Uint8Array(analyser.fftSize);
-          let checkInterval = setInterval(function () {
-            /* Stop checking if we transitioned to another state */
-            if (isRecording || isPlaying) {
-              clearInterval(checkInterval);
-              return;
-            }
-
-            analyser.getByteTimeDomainData(dataArray);
-            const rms = getRMS(dataArray);
-            updateVolumeMeter(rms);
-
-            /* Trigger recording when volume exceeds speech threshold */
-            if (rms >= SPEECH_THRESHOLD) {
-              clearInterval(checkInterval);
-              startRecordingCycle();
-            }
-          }, ANALYSIS_INTERVAL_MS);
-        }
-
-        /** Full cycle: record → play back → go back to listening */
-        async function startRecordingCycle() {
-          isRecording = true;
-          setParrotState('recording');
-          statusEl.textContent = 'Recording…';
-
+        /** Full cycle: listen (with pre-buffer) → record → play back → repeat */
+        async function runCycle() {
           try {
-            /* Record for the configured duration */
-            const blob = await recordAudio(mediaStream);
+            /* Listen and record (includes pre-buffer) */
+            const blob = await listenAndRecord(mediaStream);
             isRecording = false;
 
             /* Play back with higher pitch */
@@ -404,10 +408,10 @@
             console.error('Playback error:', err);
           }
 
-          /* Reset and go back to listening */
+          /* Reset and start next cycle */
           isPlaying = false;
           updateVolumeMeter(0);
-          startListening();
+          runCycle();
         }
 
         /* ========================================
@@ -426,7 +430,7 @@
             source.connect(analyser);
 
             /* Begin the listen → record → play loop */
-            startListening();
+            runCycle();
           } catch (err) {
             console.error('Microphone access error:', err);
             statusEl.textContent = 'Microphone access denied. Please allow microphone access and reload.';
