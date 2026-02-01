@@ -568,7 +568,6 @@
 
         /* Delete list */
         deleteBtn.addEventListener('click', function() {
-          if (!confirm('Delete this list and all its items?')) return;
           var freshLists = loadLists();
           freshLists = freshLists.filter(function(l) { return l.id !== listId; });
           saveLists(freshLists);
