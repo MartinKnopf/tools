@@ -671,18 +671,17 @@
         var count = wheel.items.length;
         var sliceAngle = (Math.PI * 2) / count;
 
-        // Random total spin: at least 5 full rotations + random extra
+        // Randomize spin: vary total distance, duration, and easing power
         var extraAngle = Math.random() * Math.PI * 2;
-        var totalSpin = Math.PI * 2 * (5 + Math.random() * 5) + extraAngle;
+        var totalSpin = Math.PI * 2 * (3 + Math.random() * 8) + extraAngle;
+        var duration = 3000 + Math.random() * 4000; // 3-7 seconds
+        var easingPower = 2.5 + Math.random() * 1.5; // variable deceleration curve
 
         var startRotation = currentRotation;
-        var targetRotation = startRotation + totalSpin;
-
-        var duration = 5000; // 5 seconds
         var startTime = null;
 
-        function easeOutCubic(t) {
-          return 1 - Math.pow(1 - t, 3);
+        function easeOut(t) {
+          return 1 - Math.pow(1 - t, easingPower);
         }
 
         function animate(timestamp) {
@@ -691,7 +690,7 @@
           var progress = Math.min(elapsed / duration, 1);
 
           // Apply easing for decreasing velocity
-          var easedProgress = easeOutCubic(progress);
+          var easedProgress = easeOut(progress);
           var angle = startRotation + totalSpin * easedProgress;
 
           drawWheel(angle);
