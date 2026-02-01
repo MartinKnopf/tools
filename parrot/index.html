@@ -167,8 +167,9 @@
         /* ========================================
            Constants
         ======================================== */
-        const SPEECH_THRESHOLD = 0.15;       // RMS level to trigger/sustain recording
-        const SILENCE_TIMEOUT_MS = 1000;     // Stop recording after this long below threshold
+        const SPEECH_THRESHOLD = 0.15;       // RMS level to trigger recording
+        const SILENCE_THRESHOLD = 0.06;      // RMS level below which silence is detected
+        const SILENCE_TIMEOUT_MS = 1000;     // Stop recording after this long below silence threshold
         const PITCH_SHIFT = 1.5;             // Playback speed multiplier for higher pitch
         const ANALYSIS_INTERVAL_MS = 50;     // How often to check volume
 
@@ -255,7 +256,7 @@
               var rms = getRMS(dataArray);
               updateVolumeMeter(rms);
 
-              if (rms < SPEECH_THRESHOLD) {
+              if (rms < SILENCE_THRESHOLD) {
                 if (silenceStart === null) {
                   silenceStart = Date.now();
                 } else if (Date.now() - silenceStart >= SILENCE_TIMEOUT_MS) {
