@@ -1,0 +1,42 @@
+<svg width="512" height="512" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Modern Vibrant Gradient for the moving block -->
+    <linearGradient id="move-gradient" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366F1" /> <!-- Indigo -->
+      <stop offset="100%" stop-color="#EC4899" /> <!-- Pink -->
+    </linearGradient>
+    
+    <!-- Subtler color for the static blocks -->
+    <linearGradient id="static-gradient" x1="0" y1="0" x2="0" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#334155" /> <!-- Slate 700 -->
+      <stop offset="100%" stop-color="#1E293B" /> <!-- Slate 800 -->
+    </linearGradient>
+  </defs>
+
+  <!-- Background (Optional: Remove this rect if you want a transparent background) -->
+  <!-- <rect width="256" height="256" rx="60" fill="#F8FAFC" /> -->
+
+  <!-- Group 1: The Static Grid (Stability) -->
+  <g id="static-grid">
+    <!-- Top Left -->
+    <rect x="40" y="40" width="80" height="80" rx="24" fill="url(#static-gradient)" />
+    <!-- Bottom Left -->
+    <rect x="40" y="136" width="80" height="80" rx="24" fill="url(#static-gradient)" />
+    <!-- Bottom Right -->
+    <rect x="136" y="136" width="80" height="80" rx="24" fill="url(#static-gradient)" />
+  </g>
+
+  <!-- Group 2: The Draggable Element (Action) -->
+  <!-- Slightly rotated and offset to simulate being picked up -->
+  <g id="moving-block" filter="drop-shadow(0px 10px 8px rgba(0,0,0,0.15))">
+    <rect 
+      x="145" 
+      y="35" 
+      width="80" 
+      height="80" 
+      rx="24" 
+      fill="url(#move-gradient)" 
+      transform="rotate(12, 185, 75)"
+    />
+  </g>
+</svg>

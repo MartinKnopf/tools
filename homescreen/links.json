@@ -1,0 +1,499 @@
+{
+  "gridSize": 8,
+  "defaults": {
+    "size": 20,
+    "labelSize": 10
+  },
+  "links": [
+    {
+      "id": "942caf76-e5c2-4665-95b1-9e078ac1def8",
+      "title": "Tagesschau",
+      "href": "http://www.tagesschau.de/",
+      "iconUrl": "https://www.andreasbinar.com/wp-content/uploads/2018/06/ts-icon-rgb-110524-2.png",
+      "size": 20,
+      "labelSize": 10,
+      "x": 1590,
+      "y": 30
+    },
+    {
+      "id": "3c21bbda-41ac-4c81-940a-8511d5088987",
+      "title": "EC2 🇩🇪",
+      "href": "https://eu-central-1.console.aws.amazon.com/ec2/home?region=eu-central-1#Instances:",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/RHSMMGZKYJXPPNI2IOC6Z63HJEW4FD5ZYMKJSXD7HQ5IPUTQR2TQ/icon/d88319dfa5d204f019b4284149886c59-7d586ea82f792b61a8c87de60565133d.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 16
+    },
+    {
+      "id": "0251f51d-a695-49f1-aff7-b172ecfcc2bc",
+      "title": "EC2 🇮🇪",
+      "href": "https://eu-west-1.console.aws.amazon.com/ec2/home?region=eu-central-1#Instances:",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/RHSMMGZKYJXPPNI2IOC6Z63HJEW4FD5ZYMKJSXD7HQ5IPUTQR2TQ/icon/d88319dfa5d204f019b4284149886c59-7d586ea82f792b61a8c87de60565133d.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 208,
+      "y": 16
+    },
+    {
+      "id": "023555a5-dfec-4c0e-88ce-f4f8aebaad23",
+      "title": "EC2 cn-north-1",
+      "href": "https://cn-north-1.console.amazonaws.cn/ec2/home?region=cn-north-1#Instances:",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/RHSMMGZKYJXPPNI2IOC6Z63HJEW4FD5ZYMKJSXD7HQ5IPUTQR2TQ/icon/d88319dfa5d204f019b4284149886c59-7d586ea82f792b61a8c87de60565133d.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 296,
+      "y": 16
+    },
+    {
+      "id": "4b12f7f2-85c2-4106-ae7c-ab8d3e35feae",
+      "title": "Buckets",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/home?region=eu-central-1#",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 80
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542acc",
+      "title": "ave-analytics-data",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-analytics-data?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 216,
+      "y": 80
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac1",
+      "title": "ave-cicd-infrastructure",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-cicd-infrastructure?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 824,
+      "y": 80
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac2",
+      "title": "ave-car-config-files",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-car-config-files?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 496,
+      "y": 80
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac3",
+      "title": "ave-car-config-files-test",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-car-config-files-test?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 648,
+      "y": 80
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac4",
+      "title": "ave-test-reports",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-test-reports?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 360,
+      "y": 80
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac5",
+      "title": "ave-audi-installation-data",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-audi-installation-data?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 992,
+      "y": 80
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac6",
+      "title": "ave-vw-installation-data",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-vw-installation-data?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 1176,
+      "y": 80
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac7",
+      "title": "ave-lamborghini-installation-data",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-lamborghini-installation-data?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 216,
+      "y": 128
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac8",
+      "title": "ave-seat-installation-data",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-seat-installation-data?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 640,
+      "y": 128
+    },
+    {
+      "id": "a6e72e7a-a647-44d5-a716-5d6201542ac9",
+      "title": "ave-bentley-installation-data",
+      "href": "https://eu-central-1.console.aws.amazon.com/s3/buckets/ave-bentley-installation-data?region=eu-central-1&bucketType=general&tab=objects",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/DKY2SIL5N3MJQCULDNOQE7TKLNQIUXRSOHBJKJGQAHLZO7TLH3TQ/icon/c0828e0381730befd1f7a025057c74fb-43acc0496e64afba82dbc9ab774dc622.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 440,
+      "y": 128
+    },
+    {
+      "id": "8fada2b8-6dad-4b4b-9086-253588470984",
+      "title": "CodeBuild 🇩🇪",
+      "href": "https://eu-central-1.console.aws.amazon.com/codesuite/codebuild/projects?region=eu-central-1&projects-meta=eyJmIjp7InRleHQiOiIiLCJzaGFyZWQiOmZhbHNlLCJ0YWdnZWQiOmZhbHNlfSwicyI6eyJwcm9wZXJ0eSI6IkxBU1RfTU9ESUZJRURfVElNRSIsImRpcmVjdGlvbiI6LTF9LCJuIjoyMCwiaSI6MH0",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/XY4Q5TY33HMUJG7NXI3D5OVE5BC7TS5EMSQIZUFRTA2XNCHHOP5Q/icon/13ee531096ccb4384d55f6b7cc66572b-9f8463d77a472721923c47b01f973d59.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 192
+    },
+    {
+      "id": "69c8a733-ffdd-42ec-bacd-ba921d8d5d34",
+      "title": "CodeBuild 🇮🇪",
+      "href": "https://eu-west-1.console.aws.amazon.com/codesuite/codebuild/projects?region=eu-central-1&projects-meta=eyJmIjp7InRleHQiOiIiLCJzaGFyZWQiOmZhbHNlLCJ0YWdnZWQiOmZhbHNlfSwicyI6eyJwcm9wZXJ0eSI6IkxBU1RfTU9ESUZJRURfVElNRSIsImRpcmVjdGlvbiI6LTF9LCJuIjoyMCwiaSI6MH0",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/XY4Q5TY33HMUJG7NXI3D5OVE5BC7TS5EMSQIZUFRTA2XNCHHOP5Q/icon/13ee531096ccb4384d55f6b7cc66572b-9f8463d77a472721923c47b01f973d59.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 240,
+      "y": 192
+    },
+    {
+      "id": "4bad394f-96ea-4acf-a50c-2dacac03aec0",
+      "title": "CloudFormation 🇩🇪",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks?filteringText=&filteringStatus=active&viewNested=true",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/K3QRWX4NRHRI7VQGXZDNGKGB7EUB3BLHIVDRZJ5YHW2RSGFOS36A/icon/5d3629a64564e611bbeae9b3045be424-e9ebf1d2d9d9c14a684cec1c80e127eb.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 256
+    },
+    {
+      "id": "d20a2325-d31c-4601-a222-58825437499d",
+      "title": "CloudFormation 🇮🇪",
+      "href": "https://eu-west-1.console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks?filteringText=&filteringStatus=active&viewNested=true",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/K3QRWX4NRHRI7VQGXZDNGKGB7EUB3BLHIVDRZJ5YHW2RSGFOS36A/icon/5d3629a64564e611bbeae9b3045be424-e9ebf1d2d9d9c14a684cec1c80e127eb.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 264,
+      "y": 256
+    },
+    {
+      "id": "a0912d88-ce68-4e8d-86ab-fd3cde888280",
+      "title": "API Gateway 🇩🇪",
+      "href": "https://eu-central-1.console.aws.amazon.com/apigateway/main/apis?region=eu-central-1#",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/YQSXE26XPXPOFR4RNTHADZ6A5EBPBODPAKV6IERNZE66HMBAER2A/icon/fb0cde6228b21d89ec222b45efec54e7-0856e92285f4e7ed254b2588d1fe1829.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 312
+    },
+    {
+      "id": "efbc885d-8d3a-4164-9501-4925d1d03caf",
+      "title": "Lambda 🇩🇪",
+      "href": "https://eu-central-1.console.aws.amazon.com/lambda/home?region=eu-central-1#/functions",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BMZQS7MWY7VIUF7PXETK3ULHIXZQQOURXD3AK46KD7UE6WMRLUSA/icon/945f3fc449518a73b9f5f32868db466c-926961f91b072604c42b7f39ce2eaf1c.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 368
+    },
+    {
+      "id": "67c8500d-3804-46a8-a336-d0b7ea5d8f9d",
+      "title": "Secrets 🇩🇪",
+      "href": "https://eu-central-1.console.aws.amazon.com/secretsmanager/listsecrets?region=eu-central-1#",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/JVAZC3MGFO75SWTKDTNZ6JAPAZXP5HIWUBGFCJYM67A7IARW6PHQ/icon/8915d768b4680de51126e0bf60a2a5d7-9ce11337c80efcb3442238d27794ee30.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 424
+    },
+    {
+      "id": "cde4c64d-1bac-440d-8ce7-7f0bc69cc524",
+      "title": "jenkins-perforce-user",
+      "href": "https://eu-central-1.console.aws.amazon.com/secretsmanager/secret?name=jenkins-perforce-user&region=eu-central-1",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/JVAZC3MGFO75SWTKDTNZ6JAPAZXP5HIWUBGFCJYM67A7IARW6PHQ/icon/8915d768b4680de51126e0bf60a2a5d7-9ce11337c80efcb3442238d27794ee30.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 224,
+      "y": 424
+    },
+    {
+      "id": "3e457639-2e9c-4f5d-be72-e4d63808fe0f",
+      "title": "ave-release-machine-windows-user",
+      "href": "https://eu-central-1.console.aws.amazon.com/secretsmanager/secret?name=ave-release-machine-windows-user&region=eu-central-1",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/JVAZC3MGFO75SWTKDTNZ6JAPAZXP5HIWUBGFCJYM67A7IARW6PHQ/icon/8915d768b4680de51126e0bf60a2a5d7-9ce11337c80efcb3442238d27794ee30.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 392,
+      "y": 424
+    },
+    {
+      "id": "87d638fc-9b51-402a-bca7-028f463e26ca",
+      "title": "Fleet Manager 🇩🇪",
+      "href": "https://eu-central-1.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=eu-central-1#",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 480
+    },
+    {
+      "id": "98361df7-0c9f-4e13-8b3c-de2a4446a6ee",
+      "title": "Fleet Manager 🇮🇪",
+      "href": "https://eu-west-1.console.aws.amazon.com/systems-manager/fleet-manager/managed-nodes?region=eu-central-1#",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 256,
+      "y": 480
+    },
+    {
+      "id": "3269b404-4a2d-4df1-860e-1656d8599e9a",
+      "title": "Parameter Store 🇩🇪",
+      "href": "https://eu-west-1.console.aws.amazon.com/systems-manager/parameters?region=eu-west-1&tab=Table",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 536
+    },
+    {
+      "id": "70a5b6c3-a46a-4a60-80dc-63aaa153c2dd",
+      "title": "SSH ave-perforce-production",
+      "href": "https://eu-central-1.console.aws.amazon.com/systems-manager/session-manager/i-0fd5c5492b7f9bed0?region=eu-central-1",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 592
+    },
+    {
+      "id": "4a7b9e57-4666-44a4-92fa-b1abfd863342",
+      "title": "SSH ave-jenkins-production",
+      "href": "https://eu-central-1.console.aws.amazon.com/systems-manager/session-manager/i-02d31145ba8816d87?region=eu-central-1#",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 320,
+      "y": 592
+    },
+    {
+      "id": "d503c873-e0f7-4a7b-a417-9704bdc22382",
+      "title": "SSH ave-swarm-production",
+      "href": "https://eu-central-1.console.aws.amazon.com/systems-manager/session-manager/i-0238f4c3ce1d40b6b?region=eu-central-1",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 512,
+      "y": 592
+    },
+    {
+      "id": "7ce7d704-f535-4ea8-922e-2960454321fa",
+      "title": "SSH sentry-production",
+      "href": "https://eu-central-1.console.aws.amazon.com/systems-manager/session-manager/i-05ca355fb294fdd6d?region=eu-central-1",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 704,
+      "y": 592
+    },
+    {
+      "id": "8bc1f02d-a4e4-44f7-bd1d-b029cfabb42d",
+      "title": "SSH ddc-1",
+      "href": "https://eu-west-1.console.aws.amazon.com/systems-manager/session-manager/i-0574144ce6eb0a8e2?region=eu-west-1",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 872,
+      "y": 592
+    },
+    {
+      "id": "60bc9b5d-724f-482e-a866-24a909b2af2b",
+      "title": "SSH ddc-2",
+      "href": "https://eu-west-1.console.aws.amazon.com/systems-manager/session-manager/i-0b3707f083d95efdd?region=eu-west-1",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/BX5GHDFHDNT62AAQ3LUPDPWNFQOTOSEMWNPXLYXUNWH2UM5QX5UQ/icon/b5c87c140628d6200f5ffeae85895b67-eed4319c5eaa4b84741dd26adcad7c1a.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 976,
+      "y": 592
+    },
+    {
+      "id": "0bd5a242-0517-432c-a431-a0cb7dff0b70",
+      "title": "CloudWatch 🇩🇪",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#home:",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 648
+    },
+    {
+      "id": "a7958894-a465-440e-806a-5447df569f33",
+      "title": "CloudWatch 🇮🇪",
+      "href": "https://eu-west-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#home:",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 248,
+      "y": 648
+    },
+    {
+      "id": "8bfa77fd-a05c-4781-8bca-a00bf51300b5",
+      "title": "CloudWatch: S3 Statistics",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#dashboards/dashboard/ave-s3-download-statistics",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 376,
+      "y": 648
+    },
+    {
+      "id": "32cf76aa-80f9-4fd8-8b76-fa5a21c0009d",
+      "title": "CloudWatch: Prod DB",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#dashboards/dashboard/ave-cicd-db-production",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 560,
+      "y": 648
+    },
+    {
+      "id": "568a8e0b-316e-4ed6-ac08-baac8d548280",
+      "title": "Logs: ave-cicd-api-prod",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fave-cicd-api-prod",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 248,
+      "y": 696
+    },
+    {
+      "id": "ed156057-6f80-485b-9299-6b83229bcc3f",
+      "title": "Logs: ave-cicd-api-staging",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fave-cicd-api-staging",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 424,
+      "y": 696
+    },
+    {
+      "id": "7f0e5171-394c-4ec5-8a59-53ab3956d096",
+      "title": "Logs: ave-cicd-pr-strings-api-production",
+      "href": "Logs: https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fave-cicd-pr-strings-api-production",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 616,
+      "y": 696
+    },
+    {
+      "id": "719db4ff-0a0c-42af-8c58-c7e1c50e75d3",
+      "title": "Logs: ave-cicd-pr-strings-api-staging",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fave-cicd-pr-strings-api-staging",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 848,
+      "y": 696
+    },
+    {
+      "id": "408ed357-a7c2-4b72-8797-44ffead51b50",
+      "title": "Logs: pipeline instances",
+      "href": "https://eu-west-1.console.aws.amazon.com/cloudwatch/home?region=eu-west-1#logsV2:log-groups/log-group/$252Fave$252Fpipeline-instance",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 1080,
+      "y": 696
+    },
+    {
+      "id": "632f89d8-e07b-497a-85dc-a6a3988331d0",
+      "title": "Logs: ave-s3-upload-api-production",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fave-s3-upload-api-production",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 1256,
+      "y": 696
+    },
+    {
+      "id": "b93eb175-a6ec-44c2-a799-6f55087ca10a",
+      "title": "Logs: ave-s3-upload-api-staging",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fave-s3-upload-api-staging",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 248,
+      "y": 744
+    },
+    {
+      "id": "1d96d3f6-e7d8-4934-ad97-86e723966bab",
+      "title": "Logs: perforce-production",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#logsV2:log-groups/log-group/$252Fave$252Fperforce-production",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 464,
+      "y": 744
+    },
+    {
+      "id": "717d7f04-acb3-4eb5-9f83-0237063ee93d",
+      "title": "Logs: swarm-production",
+      "href": "https://eu-central-1.console.aws.amazon.com/cloudwatch/home?region=eu-central-1#logsV2:log-groups/log-group/$252Fave$252Fswarm-production",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 648,
+      "y": 744
+    },
+    {
+      "id": "614f2d2b-0597-4335-8a64-9007c8a757b7",
+      "title": "Wiz: VCM Audi Critical",
+      "href": "https://app.wiz.io/boards/b05b4c21-95e8-4383-8c67-253aae4f3b59",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 264,
+      "y": 800
+    },
+    {
+      "id": "6f8144b0-5af3-4764-9957-d050fc3d3493",
+      "title": "Wiz: Newest Vulnerabilities",
+      "href": "https://app.wiz.io/findings/vulnerability-findings#~%28filters~%28codeToCloudPipelineStage~%28equals~%28~%27CLOUD%29%29~severity~%28equals~%28~%27HIGH~%27CRITICAL%29%29%29~groupBy~%28~%27VULNERABLE_ASSET%29%29",
+      "iconUrl": "https://a.b.cdn.console.awsstatic.com/a/v1/CX6QBE6PRZYY4R3LVRUGVYCKEYSXHAEJLUVNJVMT5MOLELYXPPGQ/icon/8f57ebd825a828e205b2dde223ba17e4-6af63a22dc297f8041286760ee8cd2c9.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 424,
+      "y": 800
+    },
+    {
+      "id": "cca06578-f3fd-4e5a-ac8e-40f475720d95",
+      "title": "AWS Access Portal",
+      "href": "https://idp-sso1.audi.de/isam/sps/live-www-StrongMulti-02-audiIDP/saml20/logininitial?RequestBinding=HTTPPost&PartnerId=https://eu-central-1.signin.aws.amazon.com/platform/saml/d-99677dbdca",
+      "iconUrl": "https://assets.sso-portal.eu-central-1.amazonaws.com/2025-11-18-00-06-03-032/48efa41ea2fb4e9aaf73.svg",
+      "size": 20,
+      "labelSize": 10,
+      "x": 120,
+      "y": 800
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>‍Workouts</h1>
+        </header>
+        
+        <div class="tabs">
+            <span id="sessions-tab" class="tab active">Sessions</span>
+            <span id="templates-tab" class="tab">Templates</span>
+            <span id="data-tab" class="tab">Data</span>
+        </div>
+
+        <!-- Sessions View -->
+        <section id="sessions-view" class="view active">
+            <div class="action-bar">
+                <span></span>
+                <button id="new-session-btn" class="primary-btn">New Session</button>
+            </div>
+            <div id="sessions-list" class="list-container">
+                <!-- Sessions will be dynamically inserted here -->
+            </div>
+        </section>
+
+        <!-- Templates View -->
+        <section id="templates-view" class="view">
+            <div class="action-bar">
+                <span></span>
+                <button id="new-template-btn" class="primary-btn">New Template</button>
+            </div>
+            <div id="templates-list" class="list-container">
+                <!-- Templates will be dynamically inserted here -->
+            </div>
+        </section>
+
+        <!-- Data Management View -->
+        <section id="data-view" class="view">
+            <span></span>
+            <div class="data-actions">
+                <div class="data-action">
+                    <h3>Export Data</h3>
+                    <p>Download all your templates and workout sessions as a JSON file.</p>
+                    <button id="export-data-btn" class="secondary-btn">Export Data</button>
+                </div>
+                <div class="data-action">
+                    <h3>Import Data</h3>
+                    <p>Import templates and workout sessions from a JSON file. This will replace all current data.</p>
+                    <input type="file" id="import-data-input" accept=".json" style="display:none;">
+                    <button id="import-data-btn" class="secondary-btn">Import Data</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal for creating/editing templates -->
+        <div id="template-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2 id="template-modal-title">New Template</h2>
+                <form id="template-form">
+                    <div class="form-group">
+                        <input type="text" id="template-name" placeholder="Template Name" required>
+                    </div>
+                    <div class="form-group">
+                        <h3>Exercises</h3>
+                        <div id="template-exercises">
+                            <!-- Exercise inputs will be added here -->
+                        </div>
+                        <button type="button" id="add-exercise-btn" class="secondary-btn">Add Exercise</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="primary-btn">Save Template</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal for selecting a template for a new session -->
+        <div id="new-session-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>Start New Workout</h2>
+                <p>Select a template to start your workout session:</p>
+                <div id="template-selection" class="list-container">
+                    <!-- Template options will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

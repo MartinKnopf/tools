@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Tracker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22currentColor%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 class=%22feather feather-clock%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22></circle><polyline points=%2212 6 12 12 16 14%22></polyline></svg>">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 10px;
+            background: #f5f5f5;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        h3 {
+            font-size: 16px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .entry-form, .time-slot-edit {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr auto auto;
+            gap: 5px;
+            align-items: center;
+        }
+        .day-group {
+            margin-bottom: 10px;
+        }
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            cursor: pointer; /* Make the header clickable */
+        }
+        .day-header h3 {
+            margin: 0;
+        }
+        .day-header div {
+            font-size: 12px; /* Reduced font size */
+        }
+        .time-slot-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .time-slot-table td {
+            border: 1px solid #dee2e6;
+            padding: 5px;
+            text-align: left;
+        }
+        .icon-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #007bff;
+            font-size: 14px;
+        }
+        .icon-button:hover {
+            color: #0056b3;
+        }
+        .icon-button.danger {
+            color: #dc3545;
+        }
+        .icon-button.danger:hover {
+            color: #bd2130;
+        }
+        input, select {
+            padding: 5px;
+            border: none;
+            border-radius: 0;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .actions {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            float: right;
+        }
+        .hidden {
+            display: none;
+        }
+        .time-slot-edit {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr auto;
+            gap: 5px;
+            align-items: center;
+            width: 100%;
+        }
+        .entry-form-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .entry-form-table td {
+            border: 1px solid #dee2e6;
+            padding: 5px;
+            text-align: left;
+        }
+        .graph-section {
+            margin: 10px 0; /* Adjusted margin to match day group spacing */
+            padding: 0 10px;
+        }
+        .graph-section .graph-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .graph-section .graph-header h3 {
+            margin: 0;
+        }
+        .graph-card {
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .entry-form-table td, .time-slot-table td {
+            text-align: center; /* Center the content in table cells */
+            font-size: 10px;
+        }
+        .load-more {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            color: #6c757d;
+        }
+        .load-more:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Time Tracker</h1>
+        <div class="actions">
+            <button id="runTests" class="icon-button"><i class="fas fa-vial"></i></button>
+            <button class="icon-button" onclick="exportData()"><i class="fas fa-file-export"></i></button>
+            <button class="icon-button" onclick="document.getElementById('importFile').click()"><i class="fas fa-file-import"></i></button>
+            <input type="file" id="importFile" accept=".csv" style="display: none" onchange="importData(event)">
+            <button class="icon-button danger" onclick="clearData()"><i class="fas fa-trash-alt"></i></button>
+        </div>
+        <div style="clear: both;"></div>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalDays">0</div>
+                <div class="stat-label">Days Tracked</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgHours">0.0</div>
+                <div class="stat-label">Average Hours/Day</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalBalance">0.0</div>
+                <div class="stat-label">Total Balance (hrs)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalHours">0.0</div>
+                <div class="stat-label">Total Hours Worked</div>
+            </div>
+        </div>
+
+        <table class="entry-form-table">
+            <tbody>
+                <tr>
+                    <td><input type="date" id="startDate"></td>
+                    <td><input type="time" id="startTime" step="300"></td>
+                    <td><input type="date" id="endDate"></td>
+                    <td><input type="time" id="endTime" step="300"></td>
+                    <td><button class="icon-button" onclick="setCurrentStartTime()"><i class="fas fa-play"></i></button></td>
+                    <td><button class="icon-button" onclick="setCurrentEndTime()"><i class="fas fa-stop"></i></button></td>
+                    <td><button class="icon-button" onclick="addTimeSlot()"><i class="fas fa-plus"></i></button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="graph-section card graph-card">
+        <div class="graph-header" onclick="toggleGraph()">
+            <h3>Average Daily Balance</h3>
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="graph-content hidden">
+            <canvas id="balanceGraph" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <div id="timeSlots"></div>
+    <button id="loadMore" class="load-more" style="display: none;">
+        <i class="fas fa-chevron-down"></i> Load More Days
+    </button>
+    <div id="testResults" class="card" style="display: none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Initialize state with displayLimit
+        let state = {
+            timeSlots: [],
+            displayLimit: 14
+        };
+        let currentChart = null; // Add this line to declare currentChart globally
+
+        // Batch DOM updates
+        function batchDOMUpdates(callback) {
+            requestAnimationFrame(callback);
+        }
+
+        // Test Suite for Time Tracker
+        function TimeTrackerTests() {
+            let testState = {
+                timeSlots: []
+            };
+            let currentChart = null;  // Keep track of the current chart instance
+
+            const testCases = [
+                {
+                    name: 'Add Single Time Slot',
+                    run: () => {
+                        // Clear existing data
+                        testState.timeSlots = [];
+                        
+                        // Add a time slot for today, 9 AM to 5 PM
+                        const today = new Date();
+                        const start = new Date(today.setHours(9, 0, 0, 0));
+                        const end = new Date(today.setHours(17, 0, 0, 0));
+                        
+                        testState.timeSlots.push({
+                            id: '1',
+                            startDateTime: start,
+                            endDateTime: end
+                        });
+                        
+                        // Verify
+                        const totalHours = calculateTotalHours(testState.timeSlots);
+                        const expectedHours = 8.00;
+                        return {
+                            passed: totalHours === expectedHours,
+                            message: `Expected ${expectedHours} hours, got ${totalHours}`
+                        };
+                    }
+                },
+                {
+                    name: 'Calculate Balance',
+                    run: () => {
+                        // Clear existing data
+                        testState.timeSlots = [];
+                        
+                        // Add a time slot for 10 hours
+                        const today = new Date();
+                        const start = new Date(today.setHours(8, 0, 0, 0));
+                        const end = new Date(today.setHours(18, 0, 0, 0));
+                        
+                        testState.timeSlots.push({
+                            id: '1',
+                            startDateTime: start,
+                            endDateTime: end
+                        });
+                        
+                        // Verify balance (10 hours - 8 hours target = +2)
+                        const balance = calculateTotalBalance(testState.timeSlots);
+                        const expectedBalance = 2.00;
+                        return {
+                            passed: balance === expectedBalance,
+                            message: `Expected balance ${expectedBalance}, got ${balance}`
+                        };
+                    }
+                },
+                {
+                    name: 'Multi-Day Time Slot',
+                    run: () => {
+                        // Clear existing data
+                        testState.timeSlots = [];
+                        
+                        // Add a time slot spanning two days
+                        const start = new Date();
+                        start.setHours(22, 0, 0, 0);
+                        const end = new Date(start);
+                        end.setDate(end.getDate() + 1);
+                        end.setHours(6, 0, 0, 0);
+                        
+                        testState.timeSlots.push({
+                            id: '1',
+                            startDateTime: start,
+                            endDateTime: end
+                        });
+                        
+                        // Verify hours (8 hours total)
+                        const totalHours = calculateTotalHours(testState.timeSlots);
+                        const expectedHours = 8.00;
+                        return {
+                            passed: totalHours === expectedHours,
+                            message: `Expected ${expectedHours} hours, got ${totalHours}`
+                        };
+                    }
+                },
+                {
+                    name: 'Balance Update on Deletion',
+                    run: () => {
+                        // Clear existing data
+                        testState.timeSlots = [];
+                        
+                        // Add two time slots
+                        const start1 = new Date();
+                        start1.setHours(9, 0, 0, 0);
+                        const end1 = new Date(start1);
+                        end1.setHours(17, 0, 0, 0);
+                        
+                        const start2 = new Date();
+                        start2.setDate(start2.getDate() + 1);
+                        start2.setHours(10, 0, 0, 0);
+                        const end2 = new Date(start2);
+                        end2.setHours(18, 0, 0, 0);
+                        
+                        testState.timeSlots.push(
+                            {
+                                id: '1',
+                                startDateTime: start1,
+                                endDateTime: end1
+                            },
+                            {
+                                id: '2',
+                                startDateTime: start2,
+                                endDateTime: end2
+                            }
+                        );
+                        
+                        // Delete the first time slot
+                        testState.timeSlots = testState.timeSlots.filter(slot => slot.id !== '1');
+                        
+                        // Verify balance (8 hours - 8 hours target = 0)
+                        const balance = calculateTotalBalance(testState.timeSlots);
+                        const expectedBalance = 0.00;
+                        return {
+                            passed: balance === expectedBalance,
+                            message: `Expected balance ${expectedBalance}, got ${balance}`
+                        };
+                    }
+                },
+                {
+                    name: 'Average Hours Calculation',
+                    run: () => {
+                        // Clear existing data
+                        testState.timeSlots = [];
+                        
+                        // Add two days with different hours
+                        const day1Start = new Date();
+                        day1Start.setHours(9, 0, 0, 0);
+                        const day1End = new Date(day1Start);
+                        day1End.setHours(17, 0, 0, 0);
+                        
+                        const day2Start = new Date();
+                        day2Start.setDate(day2Start.getDate() + 1);
+                        day2Start.setHours(10, 0, 0, 0);
+                        const day2End = new Date(day2Start);
+                        day2End.setHours(20, 0, 0, 0);
+                        
+                        testState.timeSlots.push(
+                            {
+                                id: '1',
+                                startDateTime: day1Start,
+                                endDateTime: day1End
+                            },
+                            {
+                                id: '2',
+                                startDateTime: day2Start,
+                                endDateTime: day2End
+                            }
+                        );
+                        
+                        // Verify average ((8 + 10) / 2 = 9)
+                        const avgHours = calculateAverageHours(testState.timeSlots);
+                        const expectedAvg = 9.00;
+                        return {
+                            passed: avgHours === expectedAvg,
+                            message: `Expected average ${expectedAvg} hours, got ${avgHours}`
+                        };
+                    }
+                },
+                {
+                    name: 'Balance Update on Edit',
+                    run: () => {
+                        // Clear existing data
+                        testState.timeSlots = [];
+                        
+                        // Add a time slot for 8 hours
+                        const today = new Date();
+                        const start = new Date(today.setHours(9, 0, 0, 0));
+                        const end = new Date(today.setHours(17, 0, 0, 0));
+                        
+                        const slot = {
+                            id: '1',
+                            startDateTime: start,
+                            endDateTime: end
+                        };
+                        
+                        testState.timeSlots.push(slot);
+                        
+                        // Initial balance should be 0 (8 hours - 8 hours target)
+                        const initialBalance = calculateTotalBalance(testState.timeSlots);
+                        
+                        // Edit time slot to 10 hours
+                        slot.endDateTime = new Date(today.setHours(19, 0, 0, 0));
+                        
+                        // New balance should be +2 (10 hours - 8 hours target)
+                        const newBalance = calculateTotalBalance(testState.timeSlots);
+                        
+                        return {
+                            passed: initialBalance === 0 && newBalance === 2,
+                            message: `Expected initial balance 0 and new balance 2, got ${initialBalance} and ${newBalance}`
+                        };
+                    }
+                }
+            ];
+
+            // Create test UI
+            function createTestUI() {
+                document.getElementById('runTests').addEventListener('click', runTests);
+            }
+
+            // Run all tests
+            function runTests() {
+                // Override the original renderGraph function to store the chart instance
+                const originalRenderGraph = window.renderGraph;
+                window.renderGraph = function(groupedSlots) {
+                    // Destroy existing chart if it exists
+                    if (currentChart) {
+                        currentChart.destroy();
+                    }
+
+                    const groupedByMonth = groupByMonth(testState.timeSlots);
+                    const labels = Object.keys(groupedByMonth).map(month => new Date(month).toLocaleString('default', { month: 'long', year: 'numeric' })).reverse();
+                    const data = Object.values(groupedByMonth).map(slots => {
+                        const totalHours = slots.reduce((sum, slot) => 
+                            sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
+                        const totalDays = new Set(slots.map(slot => slot.startDateTime.toISOString().split('T')[0])).size;
+                        return (totalHours - (totalDays * 8)) / totalDays;
+                    }).reverse();
+
+                    const ctx = document.getElementById('balanceGraph').getContext('2d');
+                    currentChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Average Daily Balance (hrs)',
+                                data: data,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                fill: true,
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                };
+
+                const results = document.createElement('div');
+                results.style.position = 'fixed';
+                results.style.top = '50%';
+                results.style.left = '50%';
+                results.style.transform = 'translate(-50%, -50%)';
+                results.style.zIndex = '1000';
+                results.style.backgroundColor = 'white';
+                results.style.padding = '20px';
+                results.style.border = '1px solid #ccc';
+                results.style.borderRadius = '8px';
+                results.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                results.style.maxWidth = '90%';
+                results.style.maxHeight = '90%';
+                results.style.overflowY = 'auto';
+
+                const closeButton = document.createElement('button');
+                closeButton.textContent = 'Close';
+                closeButton.style.marginBottom = '10px';
+                closeButton.style.float = 'right';
+                closeButton.addEventListener('click', () => {
+                    document.body.removeChild(results);
+                });
+
+                results.appendChild(closeButton);
+
+                const startTime = performance.now();
+
+                testCases.forEach(test => {
+                    const result = test.run();
+                    const resultDiv = document.createElement('div');
+                    resultDiv.style.margin = '10px 0';
+                    resultDiv.style.padding = '10px';
+                    resultDiv.style.borderRadius = '4px';
+                    resultDiv.style.backgroundColor = result.passed ? '#d4edda' : '#f8d7da';
+                    resultDiv.style.color = result.passed ? '#155724' : '#721c24';
+
+                    resultDiv.innerHTML = `
+                        <strong>${test.name}</strong>: ${result.passed ? 'PASSED' : 'FAILED'}
+                        ${!result.passed ? `<br>Error: ${result.message}` : ''}
+                    `;
+
+                    results.appendChild(resultDiv);
+                });
+
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                const summary = document.createElement('div');
+                summary.style.marginTop = '10px';
+                summary.innerHTML = `Tests completed in ${duration} seconds`;
+                results.appendChild(summary);
+
+                document.body.appendChild(results);
+                
+                // Restore the original renderGraph function
+                window.renderGraph = originalRenderGraph;
+            }
+
+            // Calculate total hours worked
+            function calculateTotalHours(slots) {
+                return slots.reduce((sum, slot) => sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
+            }
+
+            // Calculate total balance
+            function calculateTotalBalance(slots) {
+                return slots.reduce((sum, slot) => sum + calculateHours(slot.startDateTime, slot.endDateTime) - 8, 0);
+            }
+
+            // Calculate average hours worked per day
+            function calculateAverageHours(slots) {
+                const groupedSlots = groupByDate(slots);
+                const totalDays = Object.keys(groupedSlots).length;
+                const totalHours = calculateTotalHours(slots);
+                return totalDays > 0 ? totalHours / totalDays : 0;
+            }
+
+            return {
+                init: createTestUI,
+                runTests: runTests
+            };
+        }
+
+        // Initialize the application
+        function init() {
+            // Initialize tests
+            const tests = TimeTrackerTests();
+            tests.init();
+
+            loadFromStorage();
+            renderTimeSlots();
+            updateStats();
+            setDateFieldsToCurrentDate();
+            document.getElementById('loadMore').addEventListener('click', loadMore);
+        }
+
+        // Set date fields to the current date
+        function setDateFieldsToCurrentDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('startDate').value = today;
+            document.getElementById('endDate').value = today;
+        }
+
+        // Custom replacer function to handle Date objects
+        function replacer(key, value) {
+            if (this[key] instanceof Date) {
+                return { _type: 'Date', value: this[key].toISOString() };
+            }
+            return value;
+        }
+
+        // Custom reviver function to handle Date objects
+        function reviver(key, value) {
+            if (value && value._type === 'Date') {
+                return new Date(value.value);
+            }
+            return value;
+        }
+
+        // Modify loadFromStorage to ignore saved displayLimit
+        function loadFromStorage() {
+            const saved = localStorage.getItem('timeTrackerData');
+            if (saved) {
+                const loadedState = JSON.parse(saved, reviver);
+                state = {
+                    timeSlots: loadedState.timeSlots || [],
+                    displayLimit: 14  // Always reset to 14
+                };
+            }
+        }
+
+        // Modify saveToStorage to only save timeSlots
+        function saveToStorage() {
+            const dataToSave = {
+                timeSlots: state.timeSlots
+            };
+            localStorage.setItem('timeTrackerData', JSON.stringify(dataToSave, replacer));
+        }
+
+        // Add new time slot
+        function addTimeSlot() {
+            const startDate = document.getElementById('startDate').value;
+            const startTime = document.getElementById('startTime').value;
+            const endDate = document.getElementById('endDate').value;
+            const endTime = document.getElementById('endTime').value;
+
+            if (!startDate || !startTime || !endDate || !endTime) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const startDateTime = new Date(`${startDate}T${startTime}`);
+            const endDateTime = new Date(`${endDate}T${endTime}`);
+            if (endDateTime < startDateTime) {
+                alert('End time must be after start time');
+                return;
+            }
+
+            state.timeSlots.push({
+                id: Date.now().toString(),
+                startDateTime: startDateTime,
+                endDateTime: endDateTime
+            });
+
+            // Sort time slots
+            state.timeSlots.sort((a, b) => b.startDateTime - a.startDateTime);
+
+            saveToStorage();
+            batchDOMUpdates(() => {
+                renderTimeSlots();
+                updateStats();
+            });
+
+            // Clear form and set date fields to current date
+            setDateFieldsToCurrentDate();
+            document.getElementById('startTime').value = '';
+            document.getElementById('endTime').value = '';
+        }
+
+        // Delete time slot
+        function deleteTimeSlot(id) {
+            state.timeSlots = state.timeSlots.filter(slot => slot.id !== id);
+            saveToStorage();
+            batchDOMUpdates(() => {
+                renderTimeSlots();
+                updateStats();
+            });
+        }
+
+        // Calculate time difference in hours
+        function calculateHours(startDateTime, endDateTime) {
+            const start = new Date(startDateTime);
+            const end = new Date(endDateTime);
+            return (end - start) / (1000 * 60 * 60);
+        }
+
+        // Format time for display
+        function formatTime(time) {
+            const date = new Date(time);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Format date for display
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString([], {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Modify renderTimeSlots to properly implement the display limit
+        function renderTimeSlots() {
+            const container = document.getElementById('timeSlots');
+            container.innerHTML = '';
+
+            const groupedSlots = groupByDate(state.timeSlots);
+            const today = new Date();
+            const sevenDaysAgo = new Date(today.setDate(today.getDate() - 7));
+            const dates = Object.keys(groupedSlots).sort().reverse();
+            
+            // Show load more button if there are more days to show
+            const loadMoreBtn = document.getElementById('loadMore');
+            loadMoreBtn.style.display = dates.length > state.displayLimit ? 'block' : 'none';
+
+            // Only render the limited number of days
+            dates.slice(0, state.displayLimit).forEach(date => {
+                const slots = groupedSlots[date];
+                const dayGroup = document.createElement('div');
+                dayGroup.className = 'card day-group';
+
+                const isOld = new Date(date) < sevenDaysAgo;
+                const totalHours = slots.reduce((sum, slot) => 
+                    sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
+                const balance = totalHours - 8;
+
+                dayGroup.innerHTML = `
+                    <div class="day-header" onclick="toggleDaySlots('${date}')">
+                        <h3>${formatDate(date)}</h3>
+                        <div>
+                            Total: ${totalHours.toFixed(2)} hrs 
+                            (${balance >= 0 ? '+' : ''}${balance.toFixed(2)} hrs)
+                        </div>
+                    </div>
+                    <table class="time-slot-table ${isOld ? 'hidden' : ''}" id="slots-${date}">
+                        <tbody>
+                            ${slots.map(slot => `
+                                <tr id="slot-${slot.id}">
+                                    <td>
+                                        <input type="date" id="editStartDate-${slot.id}" value="${new Date(slot.startDateTime).toLocaleDateString('en-CA')}" onchange="debouncedSaveTimeSlot('${slot.id}')">
+                                    </td>
+                                    <td>
+                                        <input type="time" id="editStartTime-${slot.id}" value="${new Date(slot.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}" step="300" onchange="debouncedSaveTimeSlot('${slot.id}')">
+                                    </td>
+                                    <td>
+                                        <input type="date" id="editEndDate-${slot.id}" value="${new Date(slot.endDateTime).toLocaleDateString('en-CA')}" onchange="debouncedSaveTimeSlot('${slot.id}')">
+                                    </td>
+                                    <td>
+                                        <input type="time" id="editEndTime-${slot.id}" value="${new Date(slot.endDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}" step="300" onchange="debouncedSaveTimeSlot('${slot.id}')">
+                                    </td>
+                                    <td>
+                                        <button class="icon-button danger" onclick="deleteTimeSlot('${slot.id}')"><i class="fas fa-trash-alt"></i></button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                container.appendChild(dayGroup);
+            });
+        }
+
+        // Add loadMore function
+        function loadMore() {
+            state.displayLimit += 14;
+            renderTimeSlots();
+        }
+
+        // Save edited time slot
+        function saveTimeSlot(id) {
+            const slot = state.timeSlots.find(slot => slot.id === id);
+            if (!slot) return;
+
+            const startDate = document.getElementById(`editStartDate-${id}`).value;
+            const startTime = document.getElementById(`editStartTime-${id}`).value;
+            const endDate = document.getElementById(`editEndDate-${id}`).value;
+            const endTime = document.getElementById(`editEndTime-${id}`).value;
+
+            if (!startDate || !startTime || !endDate || !endTime) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const startDateTime = new Date(`${startDate}T${startTime}`);
+            const endDateTime = new Date(`${endDate}T${endTime}`);
+            if (endDateTime < startDateTime) {
+                alert('End time must be after start time');
+                return;
+            }
+
+            slot.startDateTime = startDateTime;
+            slot.endDateTime = endDateTime;
+
+            saveToStorage();
+            batchDOMUpdates(() => {
+                renderTimeSlots();  // Add this line to re-render all time slots
+                updateStats();
+            });
+        }
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Debounced save time slot
+        const debouncedSaveTimeSlot = debounce(saveTimeSlot, 300);
+
+        // Group time slots by date
+        function groupByDate(slots) {
+            return slots.reduce((groups, slot) => {
+                const date = slot.startDateTime.toISOString().split('T')[0];
+                if (!groups[date]) {
+                    groups[date] = [];
+                }
+                groups[date].push(slot);
+                return groups;
+            }, {});
+        }
+
+        // Group time slots by month
+        function groupByMonth(slots) {
+            return slots.reduce((groups, slot) => {
+                const month = slot.startDateTime.toISOString().substring(0, 7); // YYYY-MM
+                if (!groups[month]) {
+                    groups[month] = [];
+                }
+                groups[month].push(slot);
+                return groups;
+            }, {});
+        }
+
+        // Toggle visibility of day time slots
+        function toggleDaySlots(date) {
+            const slotsDiv = document.getElementById(`slots-${date}`);
+            slotsDiv.classList.toggle('hidden');
+        }
+
+        // Update statistics
+        function updateStats() {
+            const groupedSlots = groupByDate(state.timeSlots);
+            const totalDays = Object.keys(groupedSlots).length;
+            
+            let totalHours = 0;
+            let totalBalance = 0;
+
+            Object.values(groupedSlots).forEach(slots => {
+                const dayHours = slots.reduce((sum, slot) => 
+                    sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
+                totalHours += dayHours;
+                totalBalance += dayHours - 8;
+            });
+
+            const avgHours = totalDays > 0 ? totalHours / totalDays : 0;
+
+            document.getElementById('totalDays').textContent = totalDays;
+            document.getElementById('avgHours').textContent = avgHours.toFixed(2);
+            document.getElementById('totalBalance').textContent = 
+                `${totalBalance >= 0 ? '+' : ''}${totalBalance.toFixed(2)}`;
+            document.getElementById('totalHours').textContent = totalHours.toFixed(2);
+
+            renderGraph(groupedSlots); // Ensure renderGraph is called with the correct parameter
+        }
+
+        // Render graph of average daily balance grouped by month
+        function renderGraph(groupedSlots) {
+            // Destroy existing chart if it exists
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            const groupedByMonth = groupByMonth(state.timeSlots);
+            const labels = Object.keys(groupedByMonth).map(month => new Date(month).toLocaleString('default', { month: 'long', year: 'numeric' })).reverse();
+            const data = Object.values(groupedByMonth).map(slots => {
+                const totalHours = slots.reduce((sum, slot) => 
+                    sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
+                const totalDays = new Set(slots.map(slot => slot.startDateTime.toISOString().split('T')[0])).size;
+                return (totalHours - (totalDays * 8)) / totalDays;
+            }).reverse();
+
+            const ctx = document.getElementById('balanceGraph').getContext('2d');
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Average Daily Balance (hrs)',
+                        data: data,
+                        borderColor: 'rgba(0, 0, 0, 1)', // Changed color to black
+                        backgroundColor: 'rgba(0, 0, 0, 0.2)', // Changed color to black
+                        borderWidth: 1, // Thickness is 1 pixel
+                        fill: true,
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Toggle graph visibility
+        function toggleGraph() {
+            const graphContent = document.querySelector('.graph-content');
+            const icon = document.querySelector('.graph-header i');
+            graphContent.classList.toggle('hidden');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        }
+
+        // Export data to CSV
+        function exportData() {
+            const csv = [
+                ['Start Timestamp', 'End Timestamp', 'Hours'],
+                ...state.timeSlots.map(slot => [
+                    slot.startDateTime.toISOString(),
+                    slot.endDateTime.toISOString(),
+                    calculateHours(slot.startDateTime, slot.endDateTime).toFixed(1)
+                ])
+            ].map(row => row.join(',')).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '');
+            const filename = `time-tracker-export-${timestamp}.csv`;
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Import data from CSV
+        function importData(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    const rows = text.split('\n');
+                    const newSlots = rows.slice(1).map(row => {
+                        const [startTimestamp, endTimestamp, hours] = row.split(',');
+                        const startDateTime = new Date(startTimestamp);
+                        const endDateTime = new Date(endTimestamp);
+
+                        return {
+                            id: Date.now().toString() + Math.random(),
+                            startDateTime: startDateTime,
+                            endDateTime: endDateTime
+                        };
+                    });
+                    state.timeSlots = [...state.timeSlots, ...newSlots];
+                    saveToStorage();
+                    batchDOMUpdates(() => {
+                        renderTimeSlots();
+                        updateStats();
+                    });
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // Clear all data
+        function clearData() {
+            if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+                state.timeSlots = [];
+                saveToStorage();
+                batchDOMUpdates(() => {
+                    renderTimeSlots();
+                    updateStats();
+                });
+            }
+        }
+
+        // Set current datetime as start time
+        function setCurrentStartTime() {
+            const now = new Date();
+            document.getElementById('startDate').value = now.toISOString().split('T')[0];
+            document.getElementById('startTime').value = now.toTimeString().split(' ')[0].substring(0, 5);
+        }
+
+        // Set current datetime as end time
+        function setCurrentEndTime() {
+            const now = new Date();
+            document.getElementById('endDate').value = now.toISOString().split('T')[0];
+            document.getElementById('endTime').value = now.toTimeString().split(' ')[0].substring(0, 5);
+        }
+
+        // Initialize the application
+        init();
+    </script>
+</body>
+</html>

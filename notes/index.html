@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .drag-handle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: transparent;
+            cursor: move;
+            z-index: 10;
+        }
+
+        .drag-handle:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .drag-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.05);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .drag-overlay.highlight {
+            opacity: 1;
+        }
+
+        #noteArea {
+            width: 100vw;
+            height: calc(100vh - 10px);
+            margin-top: 10px;
+            border: none;
+            outline: none;
+            resize: none;
+            padding: 0 5px 5px 5px;
+            font-family: serif;
+            font-size: 16px;
+            line-height: 1.5;
+            background: #fefefe;
+            color: #333;
+            position: relative;
+            z-index: 2;
+        }
+
+        #noteArea:focus {
+            background: #fff;
+        }
+
+        .settings-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        #settingsBtn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.1);
+            color: #666;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.3s ease;
+            font-size: 20px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 3;
+        }
+
+        #noteArea:hover ~ .settings-container #settingsBtn {
+            opacity: 1;
+        }
+
+        #settingsBtn:hover {
+            opacity: 1 !important;
+            background: rgba(0, 0, 0, 0.2);
+            color: #333;
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .settings-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            min-width: 300px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        select, input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input[type="range"] {
+            padding: 0;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .size-display {
+            text-align: center;
+            margin-top: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="drag-handle" id="dragHandle"></div>
+    <div class="drag-overlay" id="dragOverlay"></div>
+    <textarea id="noteArea" placeholder="Start writing..."></textarea>
+    
+    <div class="settings-container">
+        <button id="settingsBtn">⚙</button>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-content">
+            <button class="close-btn" id="closeBtn">&times;</button>
+            
+            <div class="setting-group">
+                <label for="fontFamily">Font Family</label>
+                <select id="fontFamily">
+
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label for="fontSize">Font Size</label>
+                <input type="range" id="fontSize" min="12" max="24" value="16">
+                <div class="size-display" id="sizeDisplay">16px</div>
+            </div>
+
+            <div class="setting-group">
+                <label for="backgroundColor">Background Color</label>
+                <input type="color" id="backgroundColor" value="#fefefe">
+            </div>
+
+            <div class="setting-group">
+                <label for="fontColor">Font Color</label>
+                <input type="color" id="fontColor" value="#333333">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const body = document.querySelector('body')
+        const noteArea = document.getElementById('noteArea');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeBtn = document.getElementById('closeBtn');
+        const fontFamilySelect = document.getElementById('fontFamily');
+        const fontSizeRange = document.getElementById('fontSize');
+        const sizeDisplay = document.getElementById('sizeDisplay');
+        const backgroundColorPicker = document.getElementById('backgroundColor');
+        const fontColorPicker = document.getElementById('fontColor');
+        const dragOverlay = document.getElementById('dragOverlay');
+        const dragHandle = document.getElementById('dragHandle');
+
+
+        // Populate font dropdown with system fonts
+        async function populateFontDropdown() {
+            const populate = (fonts) => {
+                fontFamilySelect.innerHTML = ''; // Clear existing options
+                fonts.sort().forEach(family => {
+                    const option = document.createElement('option');
+                    option.value = family;
+                    option.textContent = family;
+                    fontFamilySelect.appendChild(option);
+                });
+            };
+
+            const fallback = (reason) => {
+                console.log(`Using fallback fonts because: ${reason}`);
+                const fallbackFonts = {
+                    "Serif": "Georgia, serif",
+                    "Sans-serif": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    "Monospace": "'Courier New', monospace"
+                };
+                fontFamilySelect.innerHTML = ''; // Clear existing options
+                for (const [name, value] of Object.entries(fallbackFonts)) {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = name;
+                    fontFamilySelect.appendChild(option);
+                }
+            };
+
+            // If in Tauri environment, use the backend command
+            if (window.__TAURI__) {
+                console.log("Tauri environment detected. Using get_fonts command.");
+                try {
+                    const { invoke } = window.__TAURI__.core;
+                    const fonts = await invoke('get_fonts');
+                    if (fonts && fonts.length > 0) {
+                        populate(fonts);
+                    } else {
+                        fallback("Tauri command returned no fonts.");
+                    }
+                } catch (err) {
+                    fallback(`Tauri font enumeration error: ${err}`);
+                }
+            } 
+            // If in a secure browser context, try the Local Font Access API
+            else if (window.isSecureContext && 'queryLocalFonts' in window) {
+                console.log("Secure browser context detected. Using queryLocalFonts API.");
+                try {
+                    const permission = await navigator.permissions.query({ name: 'local-fonts' });
+                    console.log(`Local font access permission state: ${permission.state}`);
+                    if (permission.state === 'granted' || permission.state === 'prompt') {
+                        const availableFonts = await window.queryLocalFonts();
+                        const fontFamilies = [...new Set(availableFonts.map(font => font.family))];
+                        if (fontFamilies.length > 0) {
+                            populate(fontFamilies);
+                        } else {
+                           fallback("queryLocalFonts returned no fonts.");
+                        }
+                    } else {
+                        fallback("Local font access permission denied.");
+                    }
+                } catch (err) {
+                    fallback(`Browser font enumeration error: ${err}`);
+                }
+            } 
+            // Otherwise, use the fallback
+            else {
+                fallback(`Not in a secure context or queryLocalFonts not supported. isSecureContext: ${window.isSecureContext}, queryLocalFonts in window: ${'queryLocalFonts' in window}`);
+            }
+        }
+
+        // Load saved settings
+        async function loadSettings() {
+            await populateFontDropdown(); // Wait for fonts to load
+
+            const savedFont = localStorage.getItem('noteFont') || 'Georgia, serif';
+            const savedSize = localStorage.getItem('noteSize') || '16';
+            const savedBgColor = localStorage.getItem('noteBgColor') || '#fefefe';
+            const savedFontColor = localStorage.getItem('noteFontColor') || '#333333';
+            
+            fontFamilySelect.value = savedFont;
+            fontSizeRange.value = savedSize;
+            backgroundColorPicker.value = savedBgColor;
+            fontColorPicker.value = savedFontColor;
+            
+            applySettings();
+        }
+
+
+        // Apply settings to textarea
+        function applySettings() {
+            const font = fontFamilySelect.value;
+            const size = fontSizeRange.value + 'px';
+            const bgColor = backgroundColorPicker.value;
+            const fontColor = fontColorPicker.value;
+            
+            body.style.backgroundColor = bgColor;
+            noteArea.style.fontFamily = font;
+            noteArea.style.fontSize = size;
+            noteArea.style.backgroundColor = bgColor;
+            noteArea.style.color = fontColor;
+            sizeDisplay.textContent = size;
+            
+            // Save to localStorage
+            localStorage.setItem('noteFont', font);
+            localStorage.setItem('noteSize', fontSizeRange.value);
+            localStorage.setItem('noteBgColor', bgColor);
+            localStorage.setItem('noteFontColor', fontColor);
+        }
+
+        // Load and save note content
+        function loadNote() {
+            const savedNote = localStorage.getItem('noteContent') || '';
+            noteArea.value = savedNote;
+        }
+
+        function saveNote() {
+            localStorage.setItem('noteContent', noteArea.value);
+        }
+
+        // Event listeners
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.style.display = 'flex';
+        });
+
+        closeBtn.addEventListener('click', () => {
+            settingsPanel.style.display = 'none';
+        });
+
+        settingsPanel.addEventListener('click', (e) => {
+            if (e.target === settingsPanel) {
+                settingsPanel.style.display = 'none';
+            }
+        });
+
+        fontFamilySelect.addEventListener('change', applySettings);
+        fontSizeRange.addEventListener('input', applySettings);
+        backgroundColorPicker.addEventListener('input', applySettings);
+        fontColorPicker.addEventListener('input', applySettings);
+
+        // Auto-save note content
+        noteArea.addEventListener('input', saveNote);
+
+        // Prevent settings button from stealing focus
+        settingsBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+        });
+
+        // Keep settings button visible when hovering over it
+        settingsBtn.addEventListener('mouseenter', () => {
+            settingsBtn.style.opacity = '1';
+        });
+
+        // Window dragging functionality
+        let isDragging = false;
+
+        function enableDragHighlight() {
+            dragOverlay.classList.add('highlight');
+        }
+
+        function disableDragHighlight() {
+            dragOverlay.classList.remove('highlight');
+        }
+
+        // Function to check if element is interactive
+        function isInteractiveElement(element) {
+            return element === noteArea || 
+                   element === settingsBtn || 
+                   element.closest('.settings-panel') ||
+                   element.closest('.settings-content') ||
+                   element.tagName === 'INPUT' ||
+                   element.tagName === 'SELECT' ||
+                   element.tagName === 'BUTTON';
+        }
+
+        // Function to check if element is draggable
+        function isDraggableElement(element) {
+            return element === dragHandle || element === dragOverlay;
+        }
+
+        // Add drag functionality to specific draggable elements
+        document.addEventListener('mousedown', async (e) => {
+            console.log('Mouse down on:', e.target);
+            
+            // Only drag if clicking on draggable elements
+            if (!isDraggableElement(e.target)) {
+                console.log('Clicked on non-draggable element, not dragging');
+                return;
+            }
+            
+            isDragging = true;
+            enableDragHighlight();
+            console.log('Starting drag...');
+            
+            try {
+                if (window.__TAURI__) {
+                    const { getCurrentWindow } = window.__TAURI__.window;
+                    await getCurrentWindow().startDragging();
+                    console.log('Drag started successfully');
+                }
+            } catch (error) {
+                console.error('Drag error:', error);
+                isDragging = false;
+                disableDragHighlight();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                disableDragHighlight();
+                console.log('Drag ended');
+            }
+        });
+
+        // Show drag highlight on hover over draggable areas
+        document.addEventListener('mouseover', (e) => {
+            if (!isDragging && settingsPanel.style.display !== 'flex') {
+                if (isDraggableElement(e.target)) {
+                    enableDragHighlight();
+                }
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            if (!isDragging && settingsPanel.style.display !== 'flex') {
+                if (isDraggableElement(e.target)) {
+                    disableDragHighlight();
+                }
+            }
+        });
+
+        // Remove highlight when mouse leaves the window
+        document.addEventListener('mouseleave', () => {
+            if (!isDragging) {
+                disableDragHighlight();
+            }
+        });
+
+        // Handle refresh shortcut (Cmd+R or Ctrl+R)
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
+                e.preventDefault();
+                window.location.reload();
+            }
+        });
+
+        // Initialize app
+        loadSettings();
+        loadNote();
+        noteArea.focus();
+    </script>
+</body>
+</html>
