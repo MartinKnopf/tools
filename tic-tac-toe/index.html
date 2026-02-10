@@ -13,28 +13,8 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
+    <link rel="stylesheet" href="../style.css" />
     <style>
-      /* Layout */
-      .app-container {
-        padding: 1rem 0 6rem;
-        text-align: center;
-      }
-
-      /* Mode selector */
-      .mode-selector {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-      }
-
-      .mode-selector button {
-        width: auto;
-        margin: 0;
-        padding: 0.5rem 1.2rem;
-        font-size: calc(var(--pico-font-size) * 0.9);
-      }
-
       .mode-selector button.active {
         opacity: 1;
       }
@@ -205,14 +185,6 @@
       .score-value.o { color: #3498db; }
       .score-value.draw { color: var(--pico-muted-color); }
 
-      /* Action buttons */
-      .actions {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
-
       .actions button {
         width: auto;
         margin: 0;
@@ -220,18 +192,13 @@
         font-size: calc(var(--pico-font-size) * 0.9);
       }
 
-      /* Difficulty selector */
-      .difficulty-selector {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: center;
-        margin-bottom: 1rem;
-      }
-
+      .mode-selector button,
       .difficulty-selector button {
         width: auto;
         margin: 0;
-        padding: 0.4rem 1rem;
+      }
+
+      .difficulty-selector button {
         font-size: calc(var(--pico-font-size) * 0.8);
       }
 
@@ -245,17 +212,17 @@
     </style>
   </head>
   <body>
-    <main class="container app-container">
+    <main class="container container text-center">
       <h1>Tic Tac Toe</h1>
 
       <!-- Mode selector -->
-      <div class="mode-selector">
+      <div class="flex gap-md justify-center mb-lg">
         <button id="btnVsBot" class="active">vs Bot</button>
         <button id="btnVsHuman" class="outline">vs Human</button>
       </div>
 
       <!-- Difficulty selector (only visible in bot mode) -->
-      <div class="difficulty-selector" id="difficultySelector">
+      <div class="flex gap-md justify-center mb-md" id="difficultySelector">
         <button id="btnEasy" class="outline">Easy</button>
         <button id="btnHard" class="active">Hard</button>
       </div>
@@ -296,7 +263,7 @@
       </div>
 
       <!-- Actions -->
-      <div class="actions">
+      <div class="flex gap-md justify-center flex-wrap">
         <button id="btnNewGame">New Game</button>
         <button id="btnResetScores" class="outline secondary">Reset Scores</button>
       </div>

@@ -13,45 +13,13 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
+    <link rel="stylesheet" href="../style.css" />
     <style>
-      /* Global button size override - 50% smaller */
-      button {
-        font-size: calc(var(--pico-font-size) * 0.5);
-      }
-
-      /* Page layout */
-      .streaks-container {
-        padding: 1rem 0 6rem;
-      }
-
-      /* Header with title and add button */
-      .streaks-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-      }
-
-      .streaks-header h1 {
-        margin: 0;
-      }
-
       #add-btn {
         width: auto;
-        padding: 0.4rem 0.8rem;
         margin: 0;
         font-size: 1.2rem;
         line-height: 1;
-      }
-
-      /* Habit list */
-      .habit-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
       }
 
       /* Habit list items */
@@ -101,32 +69,6 @@
         padding-left: 1rem;
       }
 
-      /* Empty state */
-      .empty-state {
-        text-align: center;
-        color: var(--pico-muted-color);
-        padding: 3rem 1rem;
-      }
-
-      /* Dialog overrides */
-      dialog {
-        max-width: 480px;
-        width: calc(100% - 2rem);
-      }
-
-      dialog article {
-        margin: 0;
-        padding: 1.5rem;
-      }
-
-      dialog header {
-        padding: 0 0 1rem;
-      }
-
-      dialog header h3 {
-        margin: 0;
-      }
-
       /* Entry list inside dialog */
       .entry-list {
         list-style: none;
@@ -160,38 +102,9 @@
         margin: 0;
       }
 
-      /* Dialog action buttons */
-      .dialog-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        margin-top: 1rem;
-      }
-
       .dialog-actions button {
         width: 100%;
         margin: 0;
-      }
-
-      .delete-btn {
-        background: var(--pico-del-color);
-        border-color: var(--pico-del-color);
-      }
-
-      /* Log entry form inside dialog */
-      .log-form {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-      }
-
-      .log-form label {
-        margin-bottom: 0;
-      }
-
-      .log-form input {
-        margin-bottom: 0;
       }
 
       /* Section dividers inside dialog */
@@ -205,34 +118,18 @@
         margin: 0 0 0.5rem;
         font-size: 0.95rem;
       }
-
-      /* Edit form fields */
-      .edit-form {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .edit-form label {
-        margin-bottom: 0;
-      }
-
-      .edit-form input,
-      .edit-form select {
-        margin-bottom: 0;
-      }
     </style>
   </head>
   <body>
-    <main class="container streaks-container">
+    <main class="container container">
       <!-- Header -->
-      <div class="streaks-header">
+      <div class="header-row mb-md">
         <h1>Streaks</h1>
         <button id="add-btn" aria-label="Add habit">+</button>
       </div>
 
       <!-- Habit list -->
-      <ul class="habit-list" id="habit-list"></ul>
+      <ul class="card-list habit-list" id="habit-list"></ul>
 
       <!-- Empty state placeholder -->
       <p class="empty-state" id="empty-state" hidden>
@@ -241,14 +138,14 @@
     </main>
 
     <!-- Habit detail/edit dialog -->
-    <dialog id="habit-dialog">
+    <dialog id="habit-dialog" class="dialog-narrow">
       <article>
         <header>
           <h3 id="dialog-title">Habit</h3>
         </header>
 
         <!-- Edit section -->
-        <div class="edit-form" id="edit-section">
+        <div class="form-stack" id="edit-section">
           <label for="edit-name">Name</label>
           <input type="text" id="edit-name" placeholder="Habit name" />
           <label for="edit-period">Period</label>
@@ -263,7 +160,7 @@
         <!-- Log entry section -->
         <div class="dialog-section">
           <h4>Log Entry</h4>
-          <div class="log-form">
+          <div class="form-stack">
             <label for="log-date">Date</label>
             <input type="date" id="log-date" />
             <label for="log-time">Time</label>
@@ -276,38 +173,44 @@
         <div class="dialog-section">
           <h4>Entries</h4>
           <ul class="entry-list" id="entry-list"></ul>
-          <p id="no-entries" hidden style="font-size: 0.85rem; color: var(--pico-muted-color);">
+          <p
+            id="no-entries"
+            hidden
+            style="font-size: 0.85rem; color: var(--pico-muted-color)"
+          >
             No entries yet.
           </p>
         </div>
 
         <!-- Actions -->
         <div class="dialog-actions">
-          <button class="delete-btn" id="delete-btn">Delete Habit</button>
+          <button class="btn-danger" id="delete-btn">Delete Habit</button>
           <button class="secondary" id="close-dialog-btn">Close</button>
         </div>
       </article>
     </dialog>
 
     <!-- Add habit dialog -->
-    <dialog id="add-dialog">
+    <dialog id="add-dialog" class="dialog-narrow">
       <article>
         <header>
           <h3>New Habit</h3>
         </header>
-        <div class="edit-form">
-          <label for="new-name">Name</label>
-          <input type="text" id="new-name" placeholder="Habit name" />
-          <label for="new-period">Period</label>
-          <select id="new-period">
-            <option value="day">Daily</option>
-            <option value="week">Weekly</option>
-            <option value="month">Monthly</option>
-          </select>
-        </div>
-        <div class="dialog-actions">
-          <button id="create-btn">Create</button>
-          <button class="secondary" id="cancel-add-btn">Cancel</button>
+        <div class="flex flex-col gap-xl">
+          <div class="form-stack">
+            <label for="new-name">Name</label>
+            <input type="text" id="new-name" placeholder="Habit name" />
+            <label for="new-period">Period</label>
+            <select id="new-period">
+              <option value="day">Daily</option>
+              <option value="week">Weekly</option>
+              <option value="month">Monthly</option>
+            </select>
+          </div>
+          <div class="flex gap-lg justify-end">
+            <button id="create-btn">Create</button>
+            <button class="secondary" id="cancel-add-btn">Cancel</button>
+          </div>
         </div>
       </article>
     </dialog>
@@ -316,7 +219,7 @@
       /* ========================================
          Constants and Storage
       ======================================== */
-      const STORAGE_KEY = 'streaks_habits';
+      const STORAGE_KEY = "streaks_habits";
 
       // Load habits from localStorage
       function loadHabits() {
@@ -341,9 +244,9 @@
       // Format a local Date object as YYYY-MM-DD
       function formatLocalDate(d) {
         var year = d.getFullYear();
-        var month = String(d.getMonth() + 1).padStart(2, '0');
-        var day = String(d.getDate()).padStart(2, '0');
-        return year + '-' + month + '-' + day;
+        var month = String(d.getMonth() + 1).padStart(2, "0");
+        var day = String(d.getDate()).padStart(2, "0");
+        return year + "-" + month + "-" + day;
       }
 
       // Get today's date as a local YYYY-MM-DD string
@@ -353,19 +256,19 @@
 
       // Get the period key for a local date string (YYYY-MM-DD)
       function getPeriodKey(dateStr, period) {
-        if (period === 'day') {
+        if (period === "day") {
           return dateStr;
         }
-        if (period === 'week') {
+        if (period === "week") {
           // Parse as local time to find Monday of the week
-          var d = new Date(dateStr + 'T00:00:00');
+          var d = new Date(dateStr + "T00:00:00");
           var day = d.getDay();
           var diff = d.getDate() - day + (day === 0 ? -6 : 1);
           var monday = new Date(d);
           monday.setDate(diff);
           return formatLocalDate(monday);
         }
-        if (period === 'month') {
+        if (period === "month") {
           return dateStr.slice(0, 7); // YYYY-MM
         }
         return dateStr;
@@ -373,20 +276,24 @@
 
       // Subtract one period from a period key and return the previous period key
       function prevPeriodKey(periodKey, period) {
-        if (period === 'day') {
-          var d = new Date(periodKey + 'T00:00:00');
+        if (period === "day") {
+          var d = new Date(periodKey + "T00:00:00");
           d.setDate(d.getDate() - 1);
           return formatLocalDate(d);
         }
-        if (period === 'week') {
-          var d = new Date(periodKey + 'T00:00:00');
+        if (period === "week") {
+          var d = new Date(periodKey + "T00:00:00");
           d.setDate(d.getDate() - 7);
           return formatLocalDate(d);
         }
-        if (period === 'month') {
-          var parts = periodKey.split('-').map(Number);
+        if (period === "month") {
+          var parts = periodKey.split("-").map(Number);
           var prev = new Date(parts[0], parts[1] - 2, 1);
-          return prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+          return (
+            prev.getFullYear() +
+            "-" +
+            String(prev.getMonth() + 1).padStart(2, "0")
+          );
         }
         return periodKey;
       }
@@ -397,7 +304,7 @@
 
         // Collect unique period keys from entries
         var periodKeys = new Set();
-        habit.entries.forEach(function(entry) {
+        habit.entries.forEach(function (entry) {
           periodKeys.add(getPeriodKey(entry.date, habit.period));
         });
 
@@ -423,13 +330,13 @@
          Rendering
       ======================================== */
 
-      const habitListEl = document.getElementById('habit-list');
-      const emptyStateEl = document.getElementById('empty-state');
+      const habitListEl = document.getElementById("habit-list");
+      const emptyStateEl = document.getElementById("empty-state");
 
       // Render the full habit list
       function renderHabits() {
         const habits = loadHabits();
-        habitListEl.innerHTML = '';
+        habitListEl.innerHTML = "";
 
         if (habits.length === 0) {
           emptyStateEl.hidden = false;
@@ -438,24 +345,36 @@
 
         emptyStateEl.hidden = true;
 
-        habits.forEach(function(habit) {
+        habits.forEach(function (habit) {
           const streak = calculateStreak(habit);
-          const li = document.createElement('li');
-          li.className = 'habit-item';
+          const li = document.createElement("li");
+          li.className = "habit-item";
           li.dataset.id = habit.id;
 
           // Period label mapping
-          const periodLabels = { day: 'Daily', week: 'Weekly', month: 'Monthly' };
-          const periodUnit = habit.period === 'day' ? 'd' : habit.period === 'week' ? 'w' : 'm';
+          const periodLabels = {
+            day: "Daily",
+            week: "Weekly",
+            month: "Monthly",
+          };
+          const periodUnit =
+            habit.period === "day" ? "d" : habit.period === "week" ? "w" : "m";
 
           li.innerHTML =
             '<div class="habit-info">' +
-              '<span class="habit-name">' + escapeHtml(habit.name) + '</span>' +
-              '<span class="habit-period">' + periodLabels[habit.period] + '</span>' +
-            '</div>' +
-            '<span class="habit-streak">' + streak + periodUnit + '</span>';
+            '<span class="habit-name">' +
+            escapeHtml(habit.name) +
+            "</span>" +
+            '<span class="habit-period">' +
+            periodLabels[habit.period] +
+            "</span>" +
+            "</div>" +
+            '<span class="habit-streak">' +
+            streak +
+            periodUnit +
+            "</span>";
 
-          li.addEventListener('click', function() {
+          li.addEventListener("click", function () {
             openHabitDialog(habit.id);
           });
 
@@ -465,7 +384,7 @@
 
       // Escape HTML to prevent XSS
       function escapeHtml(text) {
-        const div = document.createElement('div');
+        const div = document.createElement("div");
         div.textContent = text;
         return div.innerHTML;
       }
@@ -474,14 +393,14 @@
          Habit Dialog (Edit / Log / Entries)
       ======================================== */
 
-      const habitDialog = document.getElementById('habit-dialog');
-      const dialogTitle = document.getElementById('dialog-title');
-      const editNameInput = document.getElementById('edit-name');
-      const editPeriodSelect = document.getElementById('edit-period');
-      const logDateInput = document.getElementById('log-date');
-      const logTimeInput = document.getElementById('log-time');
-      const entryListEl = document.getElementById('entry-list');
-      const noEntriesEl = document.getElementById('no-entries');
+      const habitDialog = document.getElementById("habit-dialog");
+      const dialogTitle = document.getElementById("dialog-title");
+      const editNameInput = document.getElementById("edit-name");
+      const editPeriodSelect = document.getElementById("edit-period");
+      const logDateInput = document.getElementById("log-date");
+      const logTimeInput = document.getElementById("log-time");
+      const entryListEl = document.getElementById("entry-list");
+      const noEntriesEl = document.getElementById("no-entries");
 
       let currentHabitId = null;
 
@@ -489,7 +408,9 @@
       function openHabitDialog(habitId) {
         currentHabitId = habitId;
         const habits = loadHabits();
-        const habit = habits.find(function(h) { return h.id === habitId; });
+        const habit = habits.find(function (h) {
+          return h.id === habitId;
+        });
         if (!habit) return;
 
         // Populate edit fields
@@ -510,7 +431,7 @@
 
       // Render entries list inside the dialog
       function renderEntries(habit) {
-        entryListEl.innerHTML = '';
+        entryListEl.innerHTML = "";
 
         if (!habit.entries || habit.entries.length === 0) {
           noEntriesEl.hidden = false;
@@ -520,37 +441,50 @@
         noEntriesEl.hidden = true;
 
         // Sort entries newest first
-        var sorted = habit.entries.slice().sort(function(a, b) {
-          return new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time);
+        var sorted = habit.entries.slice().sort(function (a, b) {
+          return (
+            new Date(b.date + "T" + b.time) - new Date(a.date + "T" + a.time)
+          );
         });
 
-        sorted.forEach(function(entry) {
-          const li = document.createElement('li');
-          li.className = 'entry-item';
+        sorted.forEach(function (entry) {
+          const li = document.createElement("li");
+          li.className = "entry-item";
 
           // Format display date
-          const displayDate = new Date(entry.date + 'T' + entry.time);
+          const displayDate = new Date(entry.date + "T" + entry.time);
           const dateStr = displayDate.toLocaleDateString(undefined, {
-            year: 'numeric', month: 'short', day: 'numeric'
+            year: "numeric",
+            month: "short",
+            day: "numeric",
           });
           const timeStr = displayDate.toLocaleTimeString(undefined, {
-            hour: '2-digit', minute: '2-digit'
+            hour: "2-digit",
+            minute: "2-digit",
           });
 
           li.innerHTML =
-            '<span>' + dateStr + ' ' + timeStr + '</span>' +
-            '<button class="remove-entry-btn" data-entry-id="' + entry.id + '">&times;</button>';
+            "<span>" +
+            dateStr +
+            " " +
+            timeStr +
+            "</span>" +
+            '<button class="remove-entry-btn" data-entry-id="' +
+            entry.id +
+            '">&times;</button>';
 
           entryListEl.appendChild(li);
         });
 
         // Attach remove handlers
-        entryListEl.querySelectorAll('.remove-entry-btn').forEach(function(btn) {
-          btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            removeEntry(currentHabitId, btn.dataset.entryId);
+        entryListEl
+          .querySelectorAll(".remove-entry-btn")
+          .forEach(function (btn) {
+            btn.addEventListener("click", function (e) {
+              e.stopPropagation();
+              removeEntry(currentHabitId, btn.dataset.entryId);
+            });
           });
-        });
       }
 
       // Save edits to the current habit
@@ -559,7 +493,9 @@
         if (!name) return;
 
         const habits = loadHabits();
-        const habit = habits.find(function(h) { return h.id === currentHabitId; });
+        const habit = habits.find(function (h) {
+          return h.id === currentHabitId;
+        });
         if (!habit) return;
 
         habit.name = name;
@@ -577,7 +513,9 @@
         if (!date || !time) return;
 
         const habits = loadHabits();
-        const habit = habits.find(function(h) { return h.id === currentHabitId; });
+        const habit = habits.find(function (h) {
+          return h.id === currentHabitId;
+        });
         if (!habit) return;
 
         if (!habit.entries) habit.entries = [];
@@ -585,7 +523,7 @@
         habit.entries.push({
           id: generateId(),
           date: date,
-          time: time
+          time: time,
         });
 
         saveHabits(habits);
@@ -596,10 +534,14 @@
       // Remove an entry from a habit
       function removeEntry(habitId, entryId) {
         const habits = loadHabits();
-        const habit = habits.find(function(h) { return h.id === habitId; });
+        const habit = habits.find(function (h) {
+          return h.id === habitId;
+        });
         if (!habit) return;
 
-        habit.entries = habit.entries.filter(function(e) { return e.id !== entryId; });
+        habit.entries = habit.entries.filter(function (e) {
+          return e.id !== entryId;
+        });
 
         saveHabits(habits);
         renderEntries(habit);
@@ -608,10 +550,12 @@
 
       // Delete the current habit entirely
       function deleteHabit() {
-        if (!confirm('Delete this habit and all its entries?')) return;
+        if (!confirm("Delete this habit and all its entries?")) return;
 
         var habits = loadHabits();
-        habits = habits.filter(function(h) { return h.id !== currentHabitId; });
+        habits = habits.filter(function (h) {
+          return h.id !== currentHabitId;
+        });
 
         saveHabits(habits);
         habitDialog.close();
@@ -622,14 +566,14 @@
          Add Habit Dialog
       ======================================== */
 
-      const addDialog = document.getElementById('add-dialog');
-      const newNameInput = document.getElementById('new-name');
-      const newPeriodSelect = document.getElementById('new-period');
+      const addDialog = document.getElementById("add-dialog");
+      const newNameInput = document.getElementById("new-name");
+      const newPeriodSelect = document.getElementById("new-period");
 
       // Open the add dialog
       function openAddDialog() {
-        newNameInput.value = '';
-        newPeriodSelect.value = 'day';
+        newNameInput.value = "";
+        newPeriodSelect.value = "day";
         addDialog.showModal();
         newNameInput.focus();
       }
@@ -644,7 +588,7 @@
           id: generateId(),
           name: name,
           period: newPeriodSelect.value,
-          entries: []
+          entries: [],
         });
 
         saveHabits(habits);
@@ -658,35 +602,49 @@
 
       function setupEventListeners() {
         // Add habit button
-        document.getElementById('add-btn').addEventListener('click', openAddDialog);
+        document
+          .getElementById("add-btn")
+          .addEventListener("click", openAddDialog);
 
         // Add dialog buttons
-        document.getElementById('create-btn').addEventListener('click', createHabit);
-        document.getElementById('cancel-add-btn').addEventListener('click', function() {
-          addDialog.close();
-        });
+        document
+          .getElementById("create-btn")
+          .addEventListener("click", createHabit);
+        document
+          .getElementById("cancel-add-btn")
+          .addEventListener("click", function () {
+            addDialog.close();
+          });
 
         // Allow creating by pressing Enter in the name field
-        newNameInput.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') {
+        newNameInput.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
             e.preventDefault();
             createHabit();
           }
         });
 
         // Habit dialog buttons
-        document.getElementById('save-edit-btn').addEventListener('click', saveEdit);
-        document.getElementById('log-entry-btn').addEventListener('click', logEntry);
-        document.getElementById('delete-btn').addEventListener('click', deleteHabit);
-        document.getElementById('close-dialog-btn').addEventListener('click', function() {
-          habitDialog.close();
-        });
+        document
+          .getElementById("save-edit-btn")
+          .addEventListener("click", saveEdit);
+        document
+          .getElementById("log-entry-btn")
+          .addEventListener("click", logEntry);
+        document
+          .getElementById("delete-btn")
+          .addEventListener("click", deleteHabit);
+        document
+          .getElementById("close-dialog-btn")
+          .addEventListener("click", function () {
+            habitDialog.close();
+          });
 
         // Close dialogs on backdrop click
-        habitDialog.addEventListener('click', function(e) {
+        habitDialog.addEventListener("click", function (e) {
           if (e.target === habitDialog) habitDialog.close();
         });
-        addDialog.addEventListener('click', function(e) {
+        addDialog.addEventListener("click", function (e) {
           if (e.target === addDialog) addDialog.close();
         });
       }
@@ -700,7 +658,7 @@
         renderHabits();
       }
 
-      document.addEventListener('DOMContentLoaded', init);
+      document.addEventListener("DOMContentLoaded", init);
     </script>
   </body>
 </html>

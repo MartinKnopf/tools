@@ -14,6 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
+    <link rel="stylesheet" href="style.css" />
     <style>
       /* Pull-to-refresh indicator */
       .ptr-indicator {
@@ -63,7 +64,9 @@
       }
 
       @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+          transform: rotate(360deg);
+        }
       }
 
       .ptr-text {
@@ -77,29 +80,7 @@
         transition: transform 0.2s ease;
       }
 
-      /* Page layout */
-      .index-container {
-        padding: 1rem 0 6rem;
-      }
-
-      /* Tool list - vertical layout matching Streaks habit list */
-      .tool-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .tool-list li {
-        padding: 0;
-        margin: 0;
-      }
-
       .tool-list a {
-        display: block;
-        padding: 0.8rem 1rem;
         background: var(--pico-card-background-color);
         border-radius: 0.5rem;
         text-decoration: none;
@@ -120,37 +101,35 @@
       <span class="ptr-text" id="ptrText">Pull to refresh</span>
     </div>
 
-    <div class="ptr-content" id="ptrContent">
-      <main class="container index-container">
-        <h1>Tools</h1>
-        <ul class="tool-list">
-          <li><a href="homescreen/index.html">Homescreen</a></li>
-          <li><a href="time-tracking/index.html">Time Tracking</a></li>
-          <li><a href="notes/index.html">Notes</a></li>
-          <li><a href="localdraw/dist/index.html">LocalDraw</a></li>
-          <li><a href="workouts/index.html">Workouts</a></li>
-          <li><a href="spidey/index.html">Spidey</a></li>
-          <li><a href="rank-it/index.html">Rank it</a></li>
-          <li><a href="sleeptimer/index.html">SleepTimer</a></li>
-          <li><a href="streaks/index.html">Streaks</a></li>
-          <li><a href="torch/index.html">Torch</a></li>
-          <li><a href="wheel-of-fortune/index.html">Wheel of Fortune</a></li>
-          <li><a href="parrot/index.html">Parrot</a></li>
-          <li><a href="tic-tac-toe/index.html">Tic Tac Toe</a></li>
-        </ul>
-      </main>
-    </div>
+    <main class="container ptr-content" id="ptrContent">
+      <h1>Tools</h1>
+      <div class="flex flex-wrap gap-lg tool-list">
+        <a class="p-md" href="homescreen/index.html">Homescreen</a>
+        <a class="p-md" href="time-tracking/index.html">Time Tracking</a>
+        <a class="p-md" href="notes/index.html">Notes</a>
+        <a class="p-md" href="localdraw/dist/index.html">LocalDraw</a>
+        <a class="p-md" href="workouts/index.html">Workouts</a>
+        <a class="p-md" href="spidey/index.html">Spidey</a>
+        <a class="p-md" href="rank-it/index.html">Rank it</a>
+        <a class="p-md" href="sleeptimer/index.html">SleepTimer</a>
+        <a class="p-md" href="streaks/index.html">Streaks</a>
+        <a class="p-md" href="torch/index.html">Torch</a>
+        <a class="p-md" href="wheel-of-fortune/index.html">Wheel of Fortune</a>
+        <a class="p-md" href="parrot/index.html">Parrot</a>
+        <a class="p-md" href="tic-tac-toe/index.html">Tic Tac Toe</a>
+      </div>
+    </main>
 
     <script>
       // Pull-to-refresh implementation for iOS standalone web apps
-      (function() {
-        const indicator = document.getElementById('ptrIndicator');
-        const arrow = document.getElementById('ptrArrow');
-        const text = document.getElementById('ptrText');
-        const content = document.getElementById('ptrContent');
+      (function () {
+        const indicator = document.getElementById("ptrIndicator");
+        const arrow = document.getElementById("ptrArrow");
+        const text = document.getElementById("ptrText");
+        const content = document.getElementById("ptrContent");
 
-        const THRESHOLD = 80;      // pixels to pull before triggering refresh
-        const MAX_PULL = 120;      // maximum pull distance
+        const THRESHOLD = 80; // pixels to pull before triggering refresh
+        const MAX_PULL = 120; // maximum pull distance
         let startY = 0;
         let currentY = 0;
         let isPulling = false;
@@ -160,75 +139,88 @@
           return window.scrollY === 0;
         }
 
-        document.addEventListener('touchstart', function(e) {
-          if (canPull()) {
-            startY = e.touches[0].pageY;
-            isPulling = true;
-          }
-        }, { passive: true });
-
-        document.addEventListener('touchmove', function(e) {
-          if (!isPulling) return;
-
-          currentY = e.touches[0].pageY;
-          const pullDistance = currentY - startY;
-
-          // Only activate when pulling down from top
-          if (pullDistance > 0 && canPull()) {
-            const adjustedPull = Math.min(pullDistance * 0.5, MAX_PULL);
-
-            // Show indicator
-            indicator.classList.add('visible');
-            content.style.transform = `translateY(${adjustedPull}px)`;
-            indicator.style.transform = `translateY(${adjustedPull - 60}px)`;
-
-            // Update text and arrow based on pull distance
-            if (adjustedPull >= THRESHOLD) {
-              text.textContent = 'Release to refresh';
-              arrow.classList.add('flipped');
-            } else {
-              text.textContent = 'Pull to refresh';
-              arrow.classList.remove('flipped');
+        document.addEventListener(
+          "touchstart",
+          function (e) {
+            if (canPull()) {
+              startY = e.touches[0].pageY;
+              isPulling = true;
             }
-          }
-        }, { passive: true });
+          },
+          { passive: true },
+        );
 
-        document.addEventListener('touchend', function() {
-          if (!isPulling) return;
+        document.addEventListener(
+          "touchmove",
+          function (e) {
+            if (!isPulling) return;
 
-          const pullDistance = (currentY - startY) * 0.5;
+            currentY = e.touches[0].pageY;
+            const pullDistance = currentY - startY;
 
-          if (pullDistance >= THRESHOLD) {
-            // Trigger refresh
-            indicator.classList.add('refreshing');
-            text.textContent = 'Refreshing...';
+            // Only activate when pulling down from top
+            if (pullDistance > 0 && canPull()) {
+              const adjustedPull = Math.min(pullDistance * 0.5, MAX_PULL);
 
-            // Force a hard reload to bypass cache
-            setTimeout(function() {
-              location.reload(true);
-            }, 300);
-          } else {
-            // Reset without refresh
-            indicator.classList.remove('visible');
-            content.style.transform = '';
-            indicator.style.transform = '';
-          }
+              // Show indicator
+              indicator.classList.add("visible");
+              content.style.transform = `translateY(${adjustedPull}px)`;
+              indicator.style.transform = `translateY(${adjustedPull - 60}px)`;
 
-          isPulling = false;
-          startY = 0;
-          currentY = 0;
-        }, { passive: true });
+              // Update text and arrow based on pull distance
+              if (adjustedPull >= THRESHOLD) {
+                text.textContent = "Release to refresh";
+                arrow.classList.add("flipped");
+              } else {
+                text.textContent = "Pull to refresh";
+                arrow.classList.remove("flipped");
+              }
+            }
+          },
+          { passive: true },
+        );
+
+        document.addEventListener(
+          "touchend",
+          function () {
+            if (!isPulling) return;
+
+            const pullDistance = (currentY - startY) * 0.5;
+
+            if (pullDistance >= THRESHOLD) {
+              // Trigger refresh
+              indicator.classList.add("refreshing");
+              text.textContent = "Refreshing...";
+
+              // Force a hard reload to bypass cache
+              setTimeout(function () {
+                location.reload(true);
+              }, 300);
+            } else {
+              // Reset without refresh
+              indicator.classList.remove("visible");
+              content.style.transform = "";
+              indicator.style.transform = "";
+            }
+
+            isPulling = false;
+            startY = 0;
+            currentY = 0;
+          },
+          { passive: true },
+        );
       })();
 
       // Register Service Worker for PWA functionality
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-          .then(function(registration) {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register("sw.js")
+          .then(function (registration) {
             // Check for updates on page load
             registration.update();
           })
-          .catch(function(error) {
-            console.log('ServiceWorker registration failed:', error);
+          .catch(function (error) {
+            console.log("ServiceWorker registration failed:", error);
           });
       }
     </script>

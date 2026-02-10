@@ -13,29 +13,8 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
+    <link rel="stylesheet" href="../style.css" />
     <style>
-      /* Global button size override */
-      button {
-        font-size: calc(var(--pico-font-size) * 0.5);
-      }
-
-      /* Page layout */
-      .rankit-container {
-        padding: 1rem 0 6rem;
-      }
-
-      /* Header with title and action button */
-      .rankit-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-      }
-
-      .rankit-header h1 {
-        margin: 0;
-      }
-
       .header-btn {
         width: auto;
         padding: 0.4rem 0.8rem;
@@ -51,16 +30,6 @@
         margin: 0;
         font-size: 1rem;
         line-height: 1;
-      }
-
-      /* Card list shared styles */
-      .card-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
       }
 
       /* List cards (lists view) */
@@ -221,72 +190,9 @@
         cursor: grabbing;
       }
 
-      /* Empty state */
-      .empty-state {
-        text-align: center;
-        color: var(--pico-muted-color);
-        padding: 3rem 1rem;
-      }
-
-      /* View management */
-      .view {
-        display: none;
-      }
-
-      .view.active {
-        display: block;
-      }
-
-      /* Dialog overrides */
-      dialog {
-        max-width: 480px;
-        width: calc(100% - 2rem);
-      }
-
-      dialog article {
-        margin: 0;
-        padding: 1.5rem;
-      }
-
-      dialog header {
-        padding: 0 0 1rem;
-      }
-
-      dialog header h3 {
-        margin: 0;
-      }
-
-      /* Dialog action buttons */
-      .dialog-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        margin-top: 1rem;
-      }
-
       .dialog-actions button {
         width: 100%;
         margin: 0;
-      }
-
-      .delete-btn {
-        background: var(--pico-del-color);
-        border-color: var(--pico-del-color);
-      }
-
-      /* Edit form fields */
-      .edit-form {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .edit-form label {
-        margin-bottom: 0;
-      }
-
-      .edit-form input {
-        margin-bottom: 0;
       }
 
       /* Touch drag ghost element */
@@ -312,11 +218,11 @@
     </style>
   </head>
   <body>
-    <main class="container rankit-container">
+    <main class="container container">
 
       <!-- Lists view -->
-      <div class="view active" id="lists-view">
-        <div class="rankit-header">
+      <div id="lists-view">
+        <div class="header-row mb-md">
           <h1>Rank it</h1>
           <button class="header-btn" id="add-list-btn" aria-label="Add list">+</button>
         </div>
@@ -327,10 +233,10 @@
       </div>
 
       <!-- Items view -->
-      <div class="view" id="items-view">
-        <div class="rankit-header">
+      <div class="view-hidden" id="items-view">
+        <div class="header-row mb-md">
           <button class="back-btn secondary" id="back-btn" aria-label="Back">&larr;</button>
-          <h1 id="items-title" style="flex:1; margin-left:0.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></h1>
+          <h1 id="items-title" class="flex-1 min-w-0 text-ellipsis" style="margin-left:0.8rem;"></h1>
           <button class="header-btn" id="add-item-btn" aria-label="Add item">+</button>
         </div>
         <ul class="card-list" id="items-container"></ul>
@@ -342,12 +248,12 @@
     </main>
 
     <!-- Add/Rename list dialog -->
-    <dialog id="list-dialog">
+    <dialog id="list-dialog" class="dialog-narrow">
       <article>
         <header>
           <h3 id="list-dialog-title">New List</h3>
         </header>
-        <div class="edit-form">
+        <div class="form-stack">
           <label for="list-name-input">Name</label>
           <input type="text" id="list-name-input" placeholder="List name" />
         </div>
@@ -359,12 +265,12 @@
     </dialog>
 
     <!-- Add/Rename item dialog -->
-    <dialog id="item-dialog">
+    <dialog id="item-dialog" class="dialog-narrow">
       <article>
         <header>
           <h3 id="item-dialog-title">New Item</h3>
         </header>
-        <div class="edit-form">
+        <div class="form-stack">
           <label for="item-text-input">Item</label>
           <input type="text" id="item-text-input" placeholder="Item text" />
         </div>
@@ -441,16 +347,16 @@
       /* Show the lists overview */
       function showListsView() {
         currentListId = null;
-        listsView.classList.add('active');
-        itemsView.classList.remove('active');
+        listsView.classList.remove('view-hidden');
+        itemsView.classList.add('view-hidden');
         renderLists();
       }
 
       /* Show the items view for a specific list */
       function showItemsView(listId) {
         currentListId = listId;
-        listsView.classList.remove('active');
-        itemsView.classList.add('active');
+        listsView.classList.add('view-hidden');
+        itemsView.classList.remove('view-hidden');
         renderItems();
       }
 
@@ -525,7 +431,7 @@
         saveBtn.textContent = 'Save';
 
         var deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn';
+        deleteBtn.className = 'btn-danger';
         deleteBtn.textContent = 'Delete';
 
         var cancelBtn = document.createElement('button');

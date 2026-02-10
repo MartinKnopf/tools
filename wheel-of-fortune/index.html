@@ -13,12 +13,8 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
+    <link rel="stylesheet" href="../style.css" />
     <style>
-      /* Layout */
-      .app-container {
-        padding: 1rem 0 6rem;
-      }
-
       /* Back button */
       .back-btn {
         background: none;
@@ -36,55 +32,6 @@
         text-decoration: underline;
       }
 
-      /* Card list shared styles */
-      .card-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .card-item {
-        display: flex;
-        align-items: center;
-        background: var(--pico-card-background-color);
-        border-radius: 0.5rem;
-        padding: 0.6rem 0.8rem;
-        gap: 0.5rem;
-      }
-
-      .card-item .item-name {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .card-item .item-actions {
-        display: flex;
-        gap: 0.3rem;
-        flex-shrink: 0;
-      }
-
-      .card-item .item-actions button {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0.2rem 0.4rem;
-        font-size: calc(var(--pico-font-size) * 0.85);
-        border-radius: 0.25rem;
-        color: var(--pico-muted-color);
-      }
-      .card-item .item-actions button:hover {
-        color: var(--pico-color);
-      }
-      .card-item .item-actions .delete-btn:hover {
-        color: var(--pico-del-color);
-      }
-
       /* Inline rename input */
       .card-item input.inline-rename {
         flex: 1;
@@ -93,13 +40,6 @@
         padding: 0.1rem 0.3rem;
         font-size: inherit;
         height: auto;
-      }
-
-      /* Empty state */
-      .empty-state {
-        text-align: center;
-        color: var(--pico-muted-color);
-        padding: 2rem 0;
       }
 
       /* Wheel canvas area */
@@ -172,37 +112,6 @@
         background: var(--pico-primary-focus);
       }
 
-      /* Section heading with action */
-      .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-      }
-      .section-header h2 {
-        margin: 0;
-      }
-
-      /* Add form */
-      .add-form {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-      }
-      .add-form input {
-        flex: 1;
-        margin: 0;
-      }
-      .add-form button {
-        flex-shrink: 0;
-        width: auto;
-        margin: 0;
-      }
-
-      /* Hidden view */
-      .view-hidden {
-        display: none;
-      }
     </style>
   </head>
   <body>
@@ -212,7 +121,7 @@
       <div id="wheelsView">
         <h1>Wheel of Fortune</h1>
 
-        <div class="add-form">
+        <div class="form-row mb-md">
           <input type="text" id="newWheelInput" placeholder="New wheel name" aria-label="New wheel name" />
           <button id="addWheelBtn">Add</button>
         </div>
@@ -241,11 +150,11 @@
         <button class="spin-btn" id="spinBtn">Spin!</button>
 
         <!-- Items section -->
-        <div class="section-header">
-          <h2>Items</h2>
+        <div class="header-row mb-sm">
+          <h2 class="m-0">Items</h2>
         </div>
 
-        <div class="add-form">
+        <div class="form-row mb-md">
           <input type="text" id="newItemInput" placeholder="New item" aria-label="New item" />
           <button id="addItemBtn">Add</button>
         </div>
@@ -342,10 +251,10 @@
 
         wheels.forEach(function(wheel) {
           var li = document.createElement('li');
-          li.className = 'card-item';
+          li.className = 'p-md flex items-center gap-md bg-card border-radius';
           li.innerHTML =
-            '<span class="item-name">' + escapeHtml(wheel.name) + '</span>' +
-            '<span class="item-actions">' +
+            '<span class="flex-1 item-name">' + escapeHtml(wheel.name) + '</span>' +
+            '<span class="shrink-0 flex gap-sm item-actions">' +
               '<button class="rename-btn" title="Rename">&#9998;</button>' +
               '<button class="delete-btn" title="Delete">&times;</button>' +
             '</span>';

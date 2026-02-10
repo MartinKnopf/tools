@@ -1,0 +1,226 @@
+/* Pico overrites */
+:root,
+:host {
+  --pico-border-radius: 0.625rem;
+  --pico-form-element-spacing-vertical: 0.225rem;
+  --pico-form-element-spacing-horizontal: 0.625rem;
+}
+/* Shared Utility Classes for Tools */
+
+/* ===== DISPLAY ===== */
+.hidden {
+  display: none;
+}
+
+.block {
+  display: block;
+}
+
+/* ===== FLEXBOX ===== */
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.shrink-0 {
+  flex-shrink: 0;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+/* ===== GAP ===== */
+.gap-xs {
+  gap: 0.2rem;
+}
+
+.gap-sm {
+  gap: 0.3rem;
+}
+
+.gap-md {
+  gap: 0.5rem;
+}
+
+.gap-lg {
+  gap: 1rem;
+}
+
+.gap-xl {
+  gap: 1.5rem;
+}
+
+/* ===== MARGIN ===== */
+.m-0 {
+  margin: 0;
+}
+
+.mt-sm {
+  margin-top: 0.3rem;
+}
+
+.mt-md {
+  margin-top: 0.5rem;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.mb-sm {
+  margin-bottom: 0.3rem;
+}
+
+.mb-md {
+  margin-bottom: 0.5rem;
+}
+
+.mb-lg {
+  margin-bottom: 1rem;
+}
+
+/* ===== PADDING ===== */
+.p-0 {
+  padding: 0;
+}
+
+.p-sm {
+  padding: 0.3rem;
+}
+
+.p-md {
+  padding: 0.5rem;
+}
+
+/* ===== WIDTH ===== */
+.w-full {
+  width: 100%;
+}
+
+.w-auto {
+  width: auto;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+/* ===== TEXT ===== */
+.text-center {
+  text-align: center;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.border-radius {
+  border-radius: var(--pico-border-radius);
+}
+
+/* ===== COLORS ===== */
+.bg-card {
+  background: var(--pico-card-background-color);
+}
+
+/* ===== COMPOSITE PATTERNS ===== */
+
+/* Header row with space-between layout */
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-row h1,
+.header-row h2 {
+  margin: 0;
+}
+
+/* Empty state placeholder */
+.empty-state {
+  text-align: center;
+  color: var(--pico-muted-color);
+  padding: 2rem 1rem;
+}
+
+/* View toggling for multi-view pages */
+.view-hidden {
+  display: none;
+}
+
+/* Narrow dialog for forms */
+.dialog-narrow article {
+  max-width: 500px;
+}
+
+.dialog-narrow article,
+.dialog-narrow header {
+  padding: 1rem;
+}
+
+/* Dialog action buttons stacked vertically */
+.dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Form field stack */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-stack label,
+.form-stack input,
+.form-stack select {
+  margin-bottom: 0;
+}
+
+/* Horizontal form row (input + button) */
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.form-row input {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.form-row button {
+  margin-bottom: 0;
+}
+
+/* Danger button */
+.btn-danger {
+  background-color: var(--pico-del-color);
+}

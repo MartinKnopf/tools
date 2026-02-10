@@ -8,33 +8,11 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
     />
+    <link rel="stylesheet" href="../style.css" />
     <style>
-      /* Utility classes */
-      .hidden {
-        display: none;
-      }
-
-      /* Header with settings button */
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-      }
-
-      .header h1 {
-        margin: 0;
-      }
-
       /* Settings button and menu */
       .settings-container {
         position: relative;
-      }
-
-      #settings-btn {
-        width: auto;
-        padding: 0.5rem 0.75rem;
-        margin: 0;
       }
 
       .settings-menu {
@@ -68,12 +46,6 @@
         margin: 2rem 0;
       }
 
-      #sleep-btn {
-        font-size: 1.5rem;
-        padding: 1.5rem 3rem;
-        min-width: 200px;
-      }
-
       #sleep-btn.active {
         background-color: var(--pico-del-color);
         border-color: var(--pico-del-color);
@@ -98,13 +70,6 @@
         vertical-align: middle;
       }
 
-      .edit-btn {
-        width: auto;
-        padding: 0.25rem 0.5rem;
-        margin: 0;
-        font-size: 0.8rem;
-      }
-
       .duration {
         font-weight: bold;
       }
@@ -124,13 +89,6 @@
         display: none;
       }
 
-      /* Empty state */
-      .empty-state {
-        text-align: center;
-        padding: 2rem;
-        color: var(--pico-muted-color);
-      }
-
       /* Dialog styling */
       dialog article {
         min-width: min(400px, 90vw);
@@ -146,12 +104,6 @@
         margin-top: 0.25rem;
       }
 
-      dialog footer {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: flex-end;
-      }
-
       dialog footer button {
         width: auto;
         margin: 0;
@@ -161,7 +113,6 @@
       @media (max-width: 600px) {
         #sleep-btn {
           width: 100%;
-          padding: 1.25rem 1rem;
         }
 
         .session-list {
@@ -182,7 +133,7 @@
   <body>
     <main class="container">
       <!-- Header with title and settings -->
-      <div class="header">
+      <div class="header-row mb-md">
         <h1>SleepTimer</h1>
         <div class="settings-container">
           <button id="settings-btn" class="outline">Settings</button>
@@ -224,7 +175,7 @@
       <article>
         <h3>Confirm Import</h3>
         <p>This will overwrite all existing data. Are you sure you want to continue?</p>
-        <footer>
+        <footer class="flex gap-md justify-end">
           <button id="import-cancel" class="secondary">Cancel</button>
           <button id="import-confirm">Import</button>
         </footer>
@@ -244,10 +195,12 @@
           <input type="datetime-local" id="edit-end" />
         </label>
         <p id="edit-error" style="color: var(--pico-del-color); display: none;"></p>
-        <footer>
-          <button id="edit-delete" class="secondary outline" style="margin-right: auto;">Delete</button>
-          <button id="edit-cancel" class="secondary">Cancel</button>
-          <button id="edit-save">Save</button>
+        <footer class="flex gap-md justify-between">
+          <button id="edit-delete" class="secondary outline">Delete</button>
+          <div class="flex gap-md">
+            <button id="edit-cancel" class="secondary">Cancel</button>
+            <button id="edit-save">Save</button>
+          </div>
         </footer>
       </article>
     </dialog>
