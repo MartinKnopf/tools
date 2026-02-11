@@ -859,6 +859,7 @@ registerTask('file-sort', {
 
   spawnItems(config) {
     clearDesktop();
+    setOnDropCallback(checkFilePlacement);
 
     const folderElements = [];
     config.folders.forEach(folderName => {
@@ -903,5 +904,3 @@ registerTask('file-sort', {
     saveState();
   }
 });
-
-setOnDropCallback(checkFilePlacement);

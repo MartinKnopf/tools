@@ -6,7 +6,7 @@ Additional computer-use mini-tasks beyond the current file-sorting mechanic.
 
 Pop-up windows spawn rapidly across the desktop. Player must click the X button on each before the screen fills up. Windows get smaller and spawn faster over waves.
 
-## 2. Delete the Spam
+## 2. Delete the Spam ✅
 
 An inbox fills with emails. Player must drag spam to the trash and leave legitimate emails. Deleting a real email is a penalty. Spam gets more convincing over waves.
 

@@ -26,7 +26,8 @@ export function saveState() {
     score: gameState.score,
     wave: gameState.wave,
     lastWave: gameState.lastWave,
-    time: gameState.time
+    time: gameState.time,
+    activeTask: gameState.activeTask
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
 }
@@ -41,6 +42,7 @@ export function loadState() {
       gameState.wave = data.wave || 1;
       gameState.lastWave = data.lastWave || 0;
       gameState.time = data.time !== undefined ? data.time : 9 * 60;
+      gameState.activeTask = data.activeTask || null;
     } catch (e) {
       console.error('Failed to load state:', e);
     }

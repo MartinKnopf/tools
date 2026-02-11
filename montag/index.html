@@ -807,6 +807,205 @@
             margin: 0;
         }
 
+        /* ==================== PROGRAMS SUBMENU ==================== */
+        .programs-submenu {
+            display: none;
+            padding-left: 12px;
+            background: #d0d0d0;
+        }
+
+        .programs-submenu.active {
+            display: block;
+        }
+
+        .programs-submenu .start-menu-item {
+            font-size: 11px;
+            padding: 4px 12px;
+        }
+
+        /* ==================== EMAIL CLIENT WINDOW ==================== */
+        .email-toolbar {
+            display: flex;
+            gap: 2px;
+            padding: 4px 6px;
+            background: #c0c0c0;
+            border-bottom: 1px solid #808080;
+        }
+
+        .email-toolbar-btn {
+            background: #c0c0c0;
+            border: 2px outset #fff;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            cursor: default;
+        }
+
+        .email-toolbar-btn:active {
+            border-style: inset;
+        }
+
+        .email-list-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .email-list-table thead {
+            background: #c0c0c0;
+            border-bottom: 1px solid #808080;
+        }
+
+        .email-list-table th {
+            text-align: left;
+            padding: 3px 6px;
+            font-weight: bold;
+            border-right: 1px solid #808080;
+            font-size: 11px;
+        }
+
+        .email-list-table td {
+            padding: 3px 6px;
+            border-bottom: 1px solid #e0e0e0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+
+        .email-list-table tbody tr {
+            cursor: default;
+            transition: opacity 0.3s, background 0.3s;
+        }
+
+        .email-list-table tbody tr:hover {
+            background: #e8e8ff;
+        }
+
+        .email-list-table input[type="checkbox"] {
+            margin: 0;
+        }
+
+        /* ==================== EMAIL CLIENT (IN-WINDOW) ==================== */
+        .email-client {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .email-sidebar {
+            width: 120px;
+            min-width: 120px;
+            background: #c0c0c0;
+            border-right: 2px inset #808080;
+            padding: 4px 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .email-sidebar-folder {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            cursor: default;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            transition: background 0.1s;
+        }
+
+        .email-sidebar-folder:hover {
+            background: #d4d0c8;
+        }
+
+        .email-sidebar-folder .folder-icon {
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .email-sidebar-folder .folder-label-text {
+            flex: 1;
+            pointer-events: none;
+        }
+
+        .email-sidebar-folder.email-sidebar-folder-active {
+            background: #d4d0c8;
+            font-weight: bold;
+        }
+
+        .email-sidebar-folder.email-folder-hover {
+            background: #e0e8ff;
+            outline: 2px dashed #000080;
+            outline-offset: -2px;
+        }
+
+        .email-sidebar-folder.gulp {
+            animation: folder-gulp 0.4s ease-out;
+        }
+
+        .email-folder-badge {
+            background: #000080;
+            color: #fff;
+            border-radius: 8px;
+            padding: 0 5px;
+            font-size: 9px;
+            font-weight: bold;
+            min-width: 16px;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .email-list-area {
+            flex: 1;
+            overflow: auto;
+            min-width: 0;
+        }
+
+        .email-row {
+            cursor: grab;
+        }
+
+        .email-row:active {
+            cursor: grabbing;
+        }
+
+        .email-row-selected {
+            background: #000080 !important;
+            color: #fff;
+        }
+
+        .email-row-selected td {
+            color: #fff;
+        }
+
+        @keyframes email-row-remove {
+            0% { opacity: 1; }
+            50% { text-decoration: line-through; opacity: 0.5; }
+            100% { opacity: 0; height: 0; padding: 0; }
+        }
+
+        .email-row-removing {
+            animation: email-row-remove 0.35s ease-out forwards;
+            pointer-events: none;
+        }
+
+        .email-drag-ghost {
+            position: fixed;
+            background: #ffffcc;
+            border: 1px solid #000;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            pointer-events: none;
+            z-index: 5000;
+            white-space: nowrap;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
         /* ==================== RESPONSIVE ==================== */
         @media (max-width: 768px) {
             .file, .folder {
@@ -825,6 +1024,28 @@
             .taskbar-start {
                 padding: 4px 8px;
                 font-size: 12px;
+            }
+
+            .email-client {
+                flex-direction: column;
+            }
+
+            .email-sidebar {
+                width: 100%;
+                min-width: unset;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                border-right: none;
+                border-bottom: 2px inset #808080;
+                padding: 2px 4px;
+                gap: 0;
+            }
+
+            .email-sidebar-folder {
+                padding: 3px 6px;
+                font-size: 11px;
+                white-space: nowrap;
             }
         }
     </style>
@@ -857,7 +1078,11 @@
     <div id="start-menu">
         <div class="start-menu-sidebar">Montag</div>
         <div class="start-menu-items">
-            <div class="start-menu-item">Programs ▶</div>
+            <div class="start-menu-item" id="programs-item">Programs ▶</div>
+            <div id="programs-submenu" class="programs-submenu">
+                <div class="start-menu-item" id="task-file-sort">File Sorting</div>
+                <div class="start-menu-item" id="task-spam-delete">Spam Deletion</div>
+            </div>
             <div class="start-menu-item">Documents ▶</div>
             <div class="start-menu-item" id="settings-item">Settings ▶</div>
             <div class="start-menu-separator"></div>

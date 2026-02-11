@@ -8,6 +8,7 @@ import { registerEffect, isEffectEnabled, initEffects, getAllEffects, toggleEffe
 
 // Import tasks (they self-register on import)
 import './tasks/file-sort.js';
+import './tasks/spam-delete.js';
 
 // ==================== CONTEXT MENU ====================
 
@@ -301,8 +302,40 @@ startBtn.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   if (!startMenu.contains(e.target) && e.target !== startBtn) {
     startMenu.classList.remove('active');
+    const sub = document.getElementById('programs-submenu');
+    if (sub) sub.classList.remove('active');
   }
 });
+
+// Programs submenu toggle
+const programsItem = document.getElementById('programs-item');
+const programsSubmenu = document.getElementById('programs-submenu');
+
+programsItem.addEventListener('click', (e) => {
+  e.stopPropagation();
+  programsSubmenu.classList.toggle('active');
+});
+
+// Task switching handlers
+function switchTask(taskName) {
+  startMenu.classList.remove('active');
+  programsSubmenu.classList.remove('active');
+  closeAllWindows();
+
+  setActiveTask(taskName);
+  gameState.wave = 1;
+  gameState.score = 0;
+  gameState.time = 9 * 60;
+  gameState.totalFilesSorted = 0;
+  gameState.activeTask = taskName;
+  saveState();
+  startWave(1);
+  drawCoffeeCup();
+  updateScore();
+}
+
+document.getElementById('task-file-sort').addEventListener('click', () => switchTask('file-sort'));
+document.getElementById('task-spam-delete').addEventListener('click', () => switchTask('spam-delete'));
 
 // Settings handler
 document.getElementById('settings-item').addEventListener('click', () => {
@@ -404,7 +437,7 @@ function initDesktopShortcuts() {
 
 function init() {
   loadState();
-  setActiveTask('file-sort');
+  setActiveTask(gameState.activeTask || 'file-sort');
   updateScore();
   updateWaveDisplay();
   updateClock();
