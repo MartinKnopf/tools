@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v11';
+const CACHE_NAME = 'static-tools-v15';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -14,7 +14,16 @@ const PRECACHE_URLS = [
   '/tools/torch/index.html',
   '/tools/wheel-of-fortune/index.html',
   '/tools/parrot/index.html',
-  '/tools/tic-tac-toe/index.html'
+  '/tools/tic-tac-toe/index.html',
+  '/tools/montag/index.html',
+  '/tools/montag/main.js',
+  '/tools/montag/engine/state.js',
+  '/tools/montag/engine/utils.js',
+  '/tools/montag/engine/icons.js',
+  '/tools/montag/engine/ui.js',
+  '/tools/montag/engine/waves.js',
+  '/tools/montag/engine/effects.js',
+  '/tools/montag/tasks/file-sort.js'
 ];
 
 // Install event - cache core assets

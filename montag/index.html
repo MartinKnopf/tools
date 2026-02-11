@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Montag - File Sorting Game</title>
+    <style>
+        /* ==================== RESET & BASE ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            background-color: #008080;
+            background-image: repeating-conic-gradient(#1a9a9a 0% 25%, transparent 0% 50%);
+            background-size: 4px 4px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* CRT Scanline Overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(to bottom,
+                transparent 0px, transparent 2px,
+                rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        body.loading {
+            cursor: wait;
+        }
+
+        /* ==================== DESKTOP ==================== */
+        #desktop {
+            position: relative;
+            width: 100vw;
+            height: calc(100vh - 40px);
+            overflow: hidden;
+        }
+
+        /* ==================== TASKBAR ==================== */
+        #taskbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: #c0c0c0;
+            border-top: 2px solid #ffffff;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 12px;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .taskbar-start {
+            background: #c0c0c0;
+            border: 2px outset #ffffff;
+            padding: 4px 12px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            color: #000;
+        }
+
+        .taskbar-start:active {
+            border-style: inset;
+        }
+
+        .taskbar-info {
+            flex: 1;
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: #000;
+        }
+
+        .taskbar-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #coffee-cup {
+            image-rendering: pixelated;
+        }
+
+        .system-tray {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 8px;
+            border-left: 1px solid #808080;
+            margin-left: 8px;
+        }
+
+        .system-tray canvas {
+            image-rendering: pixelated;
+            cursor: pointer;
+        }
+
+        .taskbar-clock {
+            margin-left: auto;
+            padding: 4px 8px;
+            background: #000;
+            color: #00ff00;
+            border: 1px inset #808080;
+            font-size: 11px;
+        }
+
+        /* ==================== FILES & FOLDERS ==================== */
+        .file, .folder {
+            position: absolute;
+            width: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: grab;
+            padding: 8px;
+            border-radius: 4px;
+            transition: transform 0.2s;
+        }
+
+        .file:hover, .folder:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .file.dragging, .folder.dragging {
+            opacity: 0.7;
+            cursor: grabbing;
+            z-index: 100;
+        }
+
+        .folder.hover {
+            background: rgba(255, 255, 255, 0.4);
+            border: 2px dashed #fff;
+        }
+
+        .file canvas, .folder canvas {
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            pointer-events: none;
+        }
+
+        .file-label, .folder-label {
+            text-align: center;
+            font-size: 11px;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+            word-wrap: break-word;
+            max-width: 100%;
+            pointer-events: none;
+        }
+
+        /* Bounce animation for wrong drop */
+        @keyframes bounce {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .file.wrong {
+            animation: bounce 0.3s;
+        }
+
+        /* Drag outline */
+        .file.dragging, .folder.dragging {
+            opacity: 1;
+            outline: 1px dashed #fff;
+            outline-offset: 2px;
+            cursor: grabbing;
+            z-index: 100;
+        }
+
+        /* Blinking animations */
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .blink-colon, .blink-cursor {
+            animation: blink 1s step-end infinite;
+        }
+
+        /* Score pop animation */
+        @keyframes score-pop {
+            0% { transform: scale(1); color: inherit; }
+            50% { transform: scale(1.4); color: #ffff00; }
+            100% { transform: scale(1); color: inherit; }
+        }
+
+        #score-display.score-pop {
+            animation: score-pop 0.3s ease-out;
+        }
+
+        /* Screen shake animation */
+        @keyframes screen-shake {
+            0%, 100% { transform: translate(0, 0); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-3px, 2px); }
+            20%, 40%, 60%, 80% { transform: translate(3px, -2px); }
+        }
+
+        body.screen-shake {
+            animation: screen-shake 0.3s;
+        }
+
+        /* Particle burst animation */
+        @keyframes particle-burst {
+            0% {
+                transform: translate(0, 0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--px), var(--py));
+                opacity: 0;
+            }
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+            animation: particle-burst 0.5s ease-out forwards;
+        }
+
+        /* ==================== WINDOWS ==================== */
+        .window {
+            position: fixed;
+            min-width: 320px;
+            max-width: 90vw;
+            max-height: 80vh;
+            background: #c0c0c0;
+            border: 2px outset #ffffff;
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .window-titlebar {
+            background-color: #000080;
+            background-image: repeating-conic-gradient(#1084d0 0% 25%, transparent 0% 50%);
+            background-size: 2px 2px;
+            color: #fff;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: move;
+            font-weight: bold;
+            font-size: 13px;
+            user-select: none;
+        }
+
+        .window-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .window-title canvas {
+            image-rendering: pixelated;
+        }
+
+        .window-close {
+            width: 20px;
+            height: 20px;
+            background: #c0c0c0;
+            border: 2px outset #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            color: #000;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .window-close:active {
+            border-style: inset;
+        }
+
+        .window-menubar {
+            background: #c0c0c0;
+            border-bottom: 1px solid #808080;
+            padding: 2px 8px;
+            font-size: 12px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .window-menubar-item {
+            padding: 2px 8px;
+            cursor: pointer;
+        }
+
+        .window-menubar-item:hover {
+            background: #000080;
+            color: #fff;
+        }
+
+        .window-content {
+            padding: 16px;
+            overflow: auto;
+            flex: 1;
+            background: #fff;
+        }
+
+        .window-statusbar {
+            background: #c0c0c0;
+            border-top: 1px solid #808080;
+            padding: 2px 8px;
+            font-size: 11px;
+            display: flex;
+            gap: 16px;
+        }
+
+        /* ==================== WAVE OVERLAY ==================== */
+        #wave-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #000080;
+            background-image: repeating-conic-gradient(#1084d0 0% 25%, transparent 0% 50%);
+            background-size: 2px 2px;
+            color: #fff;
+            padding: 32px 48px;
+            border: 4px outset #ffffff;
+            box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.6);
+            text-align: center;
+            z-index: 2000;
+            display: none;
+        }
+
+        #wave-overlay.active {
+            display: block;
+            animation: overlay-appear 0.4s ease-out;
+        }
+
+        @keyframes overlay-appear {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0;
+            }
+            60% {
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        #wave-overlay h2 {
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+
+        #wave-overlay p {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        /* ==================== PREVIEW CONTENT ==================== */
+        .preview-canvas {
+            display: block;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            image-rendering: pixelated;
+        }
+
+        .preview-text {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+
+        /* ==================== START MENU ==================== */
+        #start-menu {
+            position: fixed;
+            bottom: 42px;
+            left: 8px;
+            width: 200px;
+            background: #c0c0c0;
+            border: 2px outset #ffffff;
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 2000;
+        }
+
+        #start-menu.active {
+            display: flex;
+        }
+
+        .start-menu-sidebar {
+            width: 32px;
+            background-color: #000080;
+            background-image: repeating-conic-gradient(#1084d0 0% 25%, transparent 0% 50%);
+            background-size: 2px 2px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            color: #fff;
+            font-weight: bold;
+            padding: 8px 4px;
+            font-size: 18px;
+        }
+
+        .start-menu-items {
+            flex: 1;
+            padding: 4px 0;
+        }
+
+        .start-menu-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .start-menu-item:hover {
+            background: #000080;
+            color: #fff;
+        }
+
+        .start-menu-separator {
+            height: 1px;
+            background: #808080;
+            margin: 4px 8px;
+        }
+
+        /* ==================== DESKTOP SHORTCUTS ==================== */
+        .desktop-shortcut {
+            position: absolute;
+            width: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .desktop-shortcut:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .desktop-shortcut canvas {
+            image-rendering: pixelated;
+        }
+
+        .desktop-shortcut-label {
+            text-align: center;
+            font-size: 11px;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        /* ==================== FOLDER BADGE ==================== */
+        .folder-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #ff0000;
+            color: #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            border: 1px solid #fff;
+            pointer-events: none;
+        }
+
+        /* ==================== COMBO COUNTER ==================== */
+        @keyframes combo-float {
+            0% {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -60px);
+                opacity: 0;
+            }
+        }
+
+        .combo-popup {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffff00;
+            color: #000;
+            padding: 8px 16px;
+            border: 2px solid #000;
+            font-weight: bold;
+            font-size: 16px;
+            pointer-events: none;
+            z-index: 1500;
+            animation: combo-float 1s ease-out forwards;
+        }
+
+
+        /* ==================== FILE SELECTION ==================== */
+        .file.selected .file-label {
+            background: #000080;
+            color: #fff;
+        }
+
+        .file.selected canvas {
+            outline: 1px dotted #000;
+        }
+
+        /* ==================== FOLDER GULP ==================== */
+        @keyframes folder-gulp {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.15, 0.9); }
+            60% { transform: scale(0.95, 1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .folder.gulp {
+            animation: folder-gulp 0.4s ease-out;
+        }
+
+        /* ==================== CRT FLICKER ==================== */
+        body.crt-flicker::after {
+            background: repeating-linear-gradient(to bottom,
+                transparent 0px, transparent 2px,
+                rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
+        }
+
+        /* ==================== CLICK FLASH ==================== */
+        @keyframes click-flash {
+            from { transform: scale(0); opacity: 1; }
+            to { transform: scale(1); opacity: 0; }
+        }
+
+        .click-flash {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+            z-index: 1500;
+            animation: click-flash 0.15s ease-out forwards;
+        }
+
+        /* ==================== WRONG DROP TEXT ==================== */
+        @keyframes error-float {
+            0% { transform: translate(-50%, 0); opacity: 1; }
+            100% { transform: translate(-50%, -40px); opacity: 0; }
+        }
+
+        .wrong-drop-text {
+            position: absolute;
+            color: #ff0000;
+            background: #fff;
+            border: 1px solid #ff0000;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1500;
+            white-space: nowrap;
+            animation: error-float 0.8s ease-out forwards;
+        }
+
+        /* ==================== SELECTION RECTANGLE ==================== */
+        .selection-rect {
+            border: 1px dashed #000080;
+            background: rgba(0, 0, 128, 0.1);
+            position: absolute;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* ==================== CONTEXT MENU ==================== */
+        .context-menu {
+            position: fixed;
+            background: #c0c0c0;
+            border: 2px outset #fff;
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+            z-index: 3000;
+            min-width: 160px;
+            padding: 4px 0;
+        }
+
+        .context-menu-item {
+            padding: 4px 24px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .context-menu-item:hover {
+            background: #000080;
+            color: #fff;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: #808080;
+            margin: 4px 8px;
+        }
+
+        /* ==================== TRAY TOOLTIP ==================== */
+        .tray-tooltip {
+            position: fixed;
+            bottom: 48px;
+            right: 16px;
+            background: #ffffcc;
+            border: 1px solid #000;
+            font-size: 11px;
+            padding: 8px 12px;
+            z-index: 3000;
+            max-width: 260px;
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .tray-tooltip-close {
+            display: inline-block;
+            margin-left: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* ==================== TASKBAR PROGRAMS ==================== */
+        #taskbar-programs {
+            display: flex;
+            gap: 4px;
+            overflow: hidden;
+            flex: 0 1 auto;
+        }
+
+        .taskbar-program {
+            background: #c0c0c0;
+            border: 2px inset #808080;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .taskbar-program:hover {
+            background: #d0d0d0;
+        }
+
+        /* ==================== FILE TOOLTIP ==================== */
+        .file-tooltip {
+            background: #ffffcc;
+            border: 1px solid #000;
+            font-size: 11px;
+            padding: 4px 8px;
+            position: absolute;
+            z-index: 1500;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* ==================== WINDOW CHROME ==================== */
+        .window-btn {
+            width: 20px;
+            height: 20px;
+            background: #c0c0c0;
+            border: 2px outset #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            color: #000;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .window-btn:active {
+            border-style: inset;
+        }
+
+        .window-buttons {
+            display: flex;
+            gap: 2px;
+        }
+
+        .window-resize-grip {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 16px;
+            height: 16px;
+            cursor: nwse-resize;
+        }
+
+        .window-resize-grip::before {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 10px;
+            height: 10px;
+            background: linear-gradient(135deg,
+                transparent 30%,
+                #808080 30%, #808080 40%,
+                transparent 40%,
+                transparent 50%,
+                #808080 50%, #808080 60%,
+                transparent 60%,
+                transparent 70%,
+                #808080 70%, #808080 80%,
+                transparent 80%);
+        }
+
+        .window.maximized {
+            left: 0 !important;
+            top: 0 !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+            height: calc(100vh - 40px) !important;
+            max-height: calc(100vh - 40px) !important;
+        }
+
+        /* ==================== DROP RIPPLE ==================== */
+        @keyframes drop-ripple {
+            from { width: 0; height: 0; opacity: 1; border-width: 3px; }
+            to { width: 80px; height: 80px; opacity: 0; border-width: 1px; }
+        }
+
+        .drop-ripple {
+            position: absolute;
+            border: 3px solid #ffd700;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+            animation: drop-ripple 0.4s ease-out forwards;
+            transform: translate(-50%, -50%);
+        }
+
+        /* ==================== COMBO SLAM ==================== */
+        @keyframes char-slam {
+            0% { opacity: 0; transform: translateY(-4px); }
+            60% { opacity: 1; transform: translateY(1px); }
+            100% { transform: translateY(0); }
+        }
+
+        .combo-char {
+            display: inline-block;
+            animation: char-slam 0.15s ease-out forwards;
+            opacity: 0;
+        }
+
+        /* ==================== SHIELD PULSE ==================== */
+        @keyframes shield-pulse {
+            50% { transform: scale(1.3); }
+        }
+
+        #tray-shield.shield-pulse {
+            animation: shield-pulse 0.6s ease-in-out infinite;
+        }
+
+        /* ==================== SETTINGS WINDOW ==================== */
+        .settings-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .settings-list li {
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .settings-list li:hover {
+            background: #e0e0e0;
+        }
+
+        .settings-list input[type="checkbox"] {
+            margin: 0;
+        }
+
+        /* ==================== RESPONSIVE ==================== */
+        @media (max-width: 768px) {
+            .file, .folder {
+                width: 70px;
+            }
+
+            .file-label, .folder-label {
+                font-size: 10px;
+            }
+
+            .taskbar-info {
+                font-size: 10px;
+                gap: 8px;
+            }
+
+            .taskbar-start {
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="desktop"></div>
+
+    <div id="taskbar">
+        <button class="taskbar-start" id="restart-btn">Montag</button>
+        <div class="taskbar-info">
+            <div class="taskbar-item">
+                <span>Wave: <strong id="wave-display">1</strong></span>
+            </div>
+            <div class="taskbar-item">
+                <span>Score: <strong id="score-display">0</strong></span>
+            </div>
+            <div class="taskbar-item">
+                <canvas id="coffee-cup" width="16" height="20"></canvas>
+            </div>
+        </div>
+        <div id="taskbar-programs"></div>
+        <div class="system-tray">
+            <canvas id="tray-volume" width="16" height="16" title="Volume: On"></canvas>
+            <canvas id="tray-network" width="16" height="16" title="Connected"></canvas>
+            <canvas id="tray-shield" width="16" height="16" title="Norton AntiVirus: All clear"></canvas>
+        </div>
+        <div class="taskbar-clock" id="clock">00:00</div>
+    </div>
+
+    <div id="start-menu">
+        <div class="start-menu-sidebar">Montag</div>
+        <div class="start-menu-items">
+            <div class="start-menu-item">Programs ▶</div>
+            <div class="start-menu-item">Documents ▶</div>
+            <div class="start-menu-item" id="settings-item">Settings ▶</div>
+            <div class="start-menu-separator"></div>
+            <div class="start-menu-item" id="shutdown-item">Shut Down...</div>
+        </div>
+    </div>
+
+    <div id="wave-overlay">
+        <h2 id="wave-title">Wave 1</h2>
+        <p id="wave-criteria">Sort files by type</p>
+        <p id="wave-hint">Drag files to matching folders</p>
+    </div>
+
+    <div id="windows-container"></div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
