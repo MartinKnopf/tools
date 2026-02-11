@@ -26,6 +26,11 @@
         min-height: 100vh;
         padding: 4px;
         overflow: auto;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-touch-callout: none;
       }
 
       /* Windows 98 beveled border styles */
@@ -52,6 +57,11 @@
         background: #c0c0c0;
         padding: 3px;
         margin: auto;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-touch-callout: none;
       }
 
       .window-title {
@@ -69,6 +79,11 @@
       .window-content {
         background: #c0c0c0;
         padding: 8px;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-touch-callout: none;
       }
 
       /* Menu bar */
@@ -629,15 +644,14 @@
             // Right click - flag
             cell.addEventListener('contextmenu', handleCellFlag);
 
-            // Prevent text selection and dragging
-            cell.addEventListener('mousedown', function(e) {
-              e.preventDefault();
-            });
+            // Prevent text selection and dragging (but allow left-click to work)
             cell.addEventListener('dragstart', function(e) {
               e.preventDefault();
+              return false;
             });
             cell.addEventListener('selectstart', function(e) {
               e.preventDefault();
+              return false;
             });
 
             // Touch - long press for flag
@@ -890,6 +904,19 @@
       // Adjust cell size on window resize
       window.addEventListener('resize', function() {
         adjustCellSize();
+      });
+
+      // Prevent text selection globally
+      document.addEventListener('selectstart', function(e) {
+        e.preventDefault();
+        return false;
+      });
+
+      document.addEventListener('contextmenu', function(e) {
+        // Allow context menu only on cells (it's handled there)
+        if (!e.target.classList.contains('cell')) {
+          e.preventDefault();
+        }
       });
     </script>
   </body>
