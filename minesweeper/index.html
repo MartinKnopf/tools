@@ -26,6 +26,11 @@
         min-height: 100vh;
         padding: 4px;
         overflow: auto;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-touch-callout: none;
       }
 
       /* Windows 98 beveled border styles */
@@ -52,6 +57,11 @@
         background: #c0c0c0;
         padding: 3px;
         margin: auto;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-touch-callout: none;
       }
 
       .window-title {
@@ -69,6 +79,11 @@
       .window-content {
         background: #c0c0c0;
         padding: 8px;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-touch-callout: none;
       }
 
       /* Menu bar */
@@ -144,6 +159,10 @@
         overflow-y: auto;
         max-width: calc(100vw - 32px);
         max-height: calc(100vh - 250px);
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
       }
 
       .board {
@@ -152,6 +171,10 @@
         background: #808080;
         line-height: 0;
         margin: 0 auto;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
       }
 
       /* Cell styles */
@@ -169,7 +192,11 @@
         font-size: 14px;
         font-weight: bold;
         user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
         -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
         position: relative;
       }
 
@@ -617,6 +644,16 @@
             // Right click - flag
             cell.addEventListener('contextmenu', handleCellFlag);
 
+            // Prevent text selection and dragging (but allow left-click to work)
+            cell.addEventListener('dragstart', function(e) {
+              e.preventDefault();
+              return false;
+            });
+            cell.addEventListener('selectstart', function(e) {
+              e.preventDefault();
+              return false;
+            });
+
             // Touch - long press for flag
             var touchTimer;
             cell.addEventListener('touchstart', function(e) {
@@ -867,6 +904,19 @@
       // Adjust cell size on window resize
       window.addEventListener('resize', function() {
         adjustCellSize();
+      });
+
+      // Prevent text selection globally
+      document.addEventListener('selectstart', function(e) {
+        e.preventDefault();
+        return false;
+      });
+
+      document.addEventListener('contextmenu', function(e) {
+        // Allow context menu only on cells (it's handled there)
+        if (!e.target.classList.contains('cell')) {
+          e.preventDefault();
+        }
       });
     </script>
   </body>
