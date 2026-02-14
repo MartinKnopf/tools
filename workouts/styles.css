@@ -157,6 +157,18 @@ textarea {
   margin-left: 0.5rem;
 }
 
+.session-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.delete-session-btn {
+  font-size: 1rem;
+  padding: 0 0.3rem;
+  line-height: 1;
+}
+
 .exercises {
   margin-top: 0.25rem;
 }
