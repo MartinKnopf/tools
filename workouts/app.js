@@ -407,6 +407,8 @@ function saveSessionDate(sessionId, newDate) {
     if (sessionIndex === -1) return;
 
     appData.sessions[sessionIndex].date = newDate;
+    // Re-sort sessions by date descending (latest first)
+    appData.sessions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     saveData();
     renderSessions();
 }
