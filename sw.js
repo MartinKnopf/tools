@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v13';
+const CACHE_NAME = 'static-tools-v14';
 
 // Files to cache on install
 const PRECACHE_URLS = [
