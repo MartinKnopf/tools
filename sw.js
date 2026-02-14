@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v15';
+const CACHE_NAME = 'static-tools-v16';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -71,14 +71,16 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // For HTML pages: network first, fallback to cache
+  // For HTML and JS: network first, fallback to cache
   // This ensures pull-to-refresh gets fresh content
-  if (request.headers.get('Accept').includes('text/html')) {
+  var isHTML = request.headers.get('Accept').includes('text/html');
+  var isJS = request.url.endsWith('.js') && !request.url.endsWith('sw.js');
+  if (isHTML || isJS) {
     event.respondWith(
       fetch(request)
         .then(function(response) {
           // Clone and cache the fresh response
-          const responseClone = response.clone();
+          var responseClone = response.clone();
           caches.open(CACHE_NAME)
             .then(function(cache) {
               cache.put(request, responseClone);
