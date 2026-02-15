@@ -21,13 +21,8 @@
         line-height: 1;
       }
 
-      /* Habit list items */
+      /* Habit items */
       .habit-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: var(--card);
-        border-radius: 0.5rem;
         cursor: pointer;
         transition: opacity 0.15s ease;
         -webkit-tap-highlight-color: transparent;
@@ -37,46 +32,19 @@
         opacity: 0.7;
       }
 
-      /* Habit name and period label */
-      .habit-info {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        min-width: 0;
-      }
-
-      .habit-name {
-        font-weight: 600;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .habit-period {
-        font-size: 0.75rem;
-        color: var(--muted-foreground);
-        text-transform: capitalize;
-      }
-
-      /* Streak count */
       .habit-streak {
         font-size: 1.6rem;
         font-weight: 700;
         color: var(--primary);
-        white-space: nowrap;
       }
 
       /* Entry list inside dialog */
       .entry-list {
-        list-style: none;
         max-height: 200px;
         overflow-y: auto;
       }
 
       .entry-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         border-bottom: 1px solid var(--border);
         font-size: 0.85rem;
       }
@@ -108,7 +76,7 @@
       }
     </style>
   </head>
-  <body>
+  <body data-theme="dark">
     <main class="container">
       <!-- Header -->
       <div class="header-row mb-2">
@@ -117,7 +85,7 @@
       </div>
 
       <!-- Habit list -->
-      <ul class="card-list habit-list" id="habit-list"></ul>
+      <div class="flex flex-col gap-2" id="habit-list"></div>
 
       <!-- Empty state placeholder -->
       <p class="empty-state" id="empty-state" hidden>
@@ -160,7 +128,7 @@
         <!-- Entries section -->
         <div class="dialog-section">
           <h4>Entries</h4>
-          <ul class="entry-list" id="entry-list"></ul>
+          <div class="entry-list flex flex-col" id="entry-list"></div>
           <p
             id="no-entries"
             hidden
@@ -337,9 +305,9 @@
 
         habits.forEach(function (habit) {
           const streak = calculateStreak(habit);
-          const li = document.createElement("li");
-          li.className = "habit-item";
-          li.dataset.id = habit.id;
+          const article = document.createElement("article");
+          article.className = "habit-item flex justify-between items-center";
+          article.dataset.id = habit.id;
 
           // Period label mapping
           const periodLabels = {
@@ -350,25 +318,25 @@
           const periodUnit =
             habit.period === "day" ? "d" : habit.period === "week" ? "w" : "m";
 
-          li.innerHTML =
-            '<div class="habit-info">' +
-            '<span class="habit-name">' +
+          article.innerHTML =
+            '<div class="flex flex-col min-w-0">' +
+            '<strong class="text-ellipsis">' +
             escapeHtml(habit.name) +
-            "</span>" +
-            '<span class="habit-period">' +
+            "</strong>" +
+            '<small class="text-lighter">' +
             periodLabels[habit.period] +
-            "</span>" +
+            "</small>" +
             "</div>" +
             '<span class="habit-streak">' +
             streak +
             periodUnit +
             "</span>";
 
-          li.addEventListener("click", function () {
+          article.addEventListener("click", function () {
             openHabitDialog(habit.id);
           });
 
-          habitListEl.appendChild(li);
+          habitListEl.appendChild(article);
         });
       }
 
@@ -438,8 +406,8 @@
         });
 
         sorted.forEach(function (entry) {
-          const li = document.createElement("li");
-          li.className = "entry-item";
+          const row = document.createElement("div");
+          row.className = "entry-item flex justify-between items-center";
 
           // Format display date
           const displayDate = new Date(entry.date + "T" + entry.time);
@@ -453,7 +421,7 @@
             minute: "2-digit",
           });
 
-          li.innerHTML =
+          row.innerHTML =
             "<span>" +
             dateStr +
             " " +
@@ -463,7 +431,7 @@
             entry.id +
             '">&times;</button>';
 
-          entryListEl.appendChild(li);
+          entryListEl.appendChild(row);
         });
 
         // Attach remove handlers

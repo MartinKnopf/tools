@@ -1,3 +1,7 @@
+body {
+  padding: var(--space-4) 0;
+}
+
 /* Shared Utility Classes for Tools */
 
 /* ===== DISPLAY ===== */

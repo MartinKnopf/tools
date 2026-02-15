@@ -171,7 +171,7 @@
         }
     </style>
 </head>
-<body>
+<body data-theme="dark">
     <div class="card">
         <h1>Time Tracker</h1>
         <div class="actions">
@@ -259,18 +259,18 @@
                     run: () => {
                         // Clear existing data
                         testState.timeSlots = [];
-                        
+
                         // Add a time slot for today, 9 AM to 5 PM
                         const today = new Date();
                         const start = new Date(today.setHours(9, 0, 0, 0));
                         const end = new Date(today.setHours(17, 0, 0, 0));
-                        
+
                         testState.timeSlots.push({
                             id: '1',
                             startDateTime: start,
                             endDateTime: end
                         });
-                        
+
                         // Verify
                         const totalHours = calculateTotalHours(testState.timeSlots);
                         const expectedHours = 8.00;
@@ -285,18 +285,18 @@
                     run: () => {
                         // Clear existing data
                         testState.timeSlots = [];
-                        
+
                         // Add a time slot for 10 hours
                         const today = new Date();
                         const start = new Date(today.setHours(8, 0, 0, 0));
                         const end = new Date(today.setHours(18, 0, 0, 0));
-                        
+
                         testState.timeSlots.push({
                             id: '1',
                             startDateTime: start,
                             endDateTime: end
                         });
-                        
+
                         // Verify balance (10 hours - 8 hours target = +2)
                         const balance = calculateTotalBalance(testState.timeSlots);
                         const expectedBalance = 2.00;
@@ -311,20 +311,20 @@
                     run: () => {
                         // Clear existing data
                         testState.timeSlots = [];
-                        
+
                         // Add a time slot spanning two days
                         const start = new Date();
                         start.setHours(22, 0, 0, 0);
                         const end = new Date(start);
                         end.setDate(end.getDate() + 1);
                         end.setHours(6, 0, 0, 0);
-                        
+
                         testState.timeSlots.push({
                             id: '1',
                             startDateTime: start,
                             endDateTime: end
                         });
-                        
+
                         // Verify hours (8 hours total)
                         const totalHours = calculateTotalHours(testState.timeSlots);
                         const expectedHours = 8.00;
@@ -339,19 +339,19 @@
                     run: () => {
                         // Clear existing data
                         testState.timeSlots = [];
-                        
+
                         // Add two time slots
                         const start1 = new Date();
                         start1.setHours(9, 0, 0, 0);
                         const end1 = new Date(start1);
                         end1.setHours(17, 0, 0, 0);
-                        
+
                         const start2 = new Date();
                         start2.setDate(start2.getDate() + 1);
                         start2.setHours(10, 0, 0, 0);
                         const end2 = new Date(start2);
                         end2.setHours(18, 0, 0, 0);
-                        
+
                         testState.timeSlots.push(
                             {
                                 id: '1',
@@ -364,10 +364,10 @@
                                 endDateTime: end2
                             }
                         );
-                        
+
                         // Delete the first time slot
                         testState.timeSlots = testState.timeSlots.filter(slot => slot.id !== '1');
-                        
+
                         // Verify balance (8 hours - 8 hours target = 0)
                         const balance = calculateTotalBalance(testState.timeSlots);
                         const expectedBalance = 0.00;
@@ -382,19 +382,19 @@
                     run: () => {
                         // Clear existing data
                         testState.timeSlots = [];
-                        
+
                         // Add two days with different hours
                         const day1Start = new Date();
                         day1Start.setHours(9, 0, 0, 0);
                         const day1End = new Date(day1Start);
                         day1End.setHours(17, 0, 0, 0);
-                        
+
                         const day2Start = new Date();
                         day2Start.setDate(day2Start.getDate() + 1);
                         day2Start.setHours(10, 0, 0, 0);
                         const day2End = new Date(day2Start);
                         day2End.setHours(20, 0, 0, 0);
-                        
+
                         testState.timeSlots.push(
                             {
                                 id: '1',
@@ -407,7 +407,7 @@
                                 endDateTime: day2End
                             }
                         );
-                        
+
                         // Verify average ((8 + 10) / 2 = 9)
                         const avgHours = calculateAverageHours(testState.timeSlots);
                         const expectedAvg = 9.00;
@@ -422,29 +422,29 @@
                     run: () => {
                         // Clear existing data
                         testState.timeSlots = [];
-                        
+
                         // Add a time slot for 8 hours
                         const today = new Date();
                         const start = new Date(today.setHours(9, 0, 0, 0));
                         const end = new Date(today.setHours(17, 0, 0, 0));
-                        
+
                         const slot = {
                             id: '1',
                             startDateTime: start,
                             endDateTime: end
                         };
-                        
+
                         testState.timeSlots.push(slot);
-                        
+
                         // Initial balance should be 0 (8 hours - 8 hours target)
                         const initialBalance = calculateTotalBalance(testState.timeSlots);
-                        
+
                         // Edit time slot to 10 hours
                         slot.endDateTime = new Date(today.setHours(19, 0, 0, 0));
-                        
+
                         // New balance should be +2 (10 hours - 8 hours target)
                         const newBalance = calculateTotalBalance(testState.timeSlots);
-                        
+
                         return {
                             passed: initialBalance === 0 && newBalance === 2,
                             message: `Expected initial balance 0 and new balance 2, got ${initialBalance} and ${newBalance}`
@@ -471,7 +471,7 @@
                     const groupedByMonth = groupByMonth(testState.timeSlots);
                     const labels = Object.keys(groupedByMonth).map(month => new Date(month).toLocaleString('default', { month: 'long', year: 'numeric' })).reverse();
                     const data = Object.values(groupedByMonth).map(slots => {
-                        const totalHours = slots.reduce((sum, slot) => 
+                        const totalHours = slots.reduce((sum, slot) =>
                             sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
                         const totalDays = new Set(slots.map(slot => slot.startDateTime.toISOString().split('T')[0])).size;
                         return (totalHours - (totalDays * 8)) / totalDays;
@@ -553,7 +553,7 @@
                 results.appendChild(summary);
 
                 document.body.appendChild(results);
-                
+
                 // Restore the original renderGraph function
                 window.renderGraph = originalRenderGraph;
             }
@@ -720,7 +720,7 @@
             const today = new Date();
             const sevenDaysAgo = new Date(today.setDate(today.getDate() - 7));
             const dates = Object.keys(groupedSlots).sort().reverse();
-            
+
             // Show load more button if there are more days to show
             const loadMoreBtn = document.getElementById('loadMore');
             loadMoreBtn.style.display = dates.length > state.displayLimit ? 'block' : 'none';
@@ -732,7 +732,7 @@
                 dayGroup.className = 'card day-group';
 
                 const isOld = new Date(date) < sevenDaysAgo;
-                const totalHours = slots.reduce((sum, slot) => 
+                const totalHours = slots.reduce((sum, slot) =>
                     sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
                 const balance = totalHours - 8;
 
@@ -740,7 +740,7 @@
                     <div class="day-header" onclick="toggleDaySlots('${date}')">
                         <h3>${formatDate(date)}</h3>
                         <div>
-                            Total: ${totalHours.toFixed(2)} hrs 
+                            Total: ${totalHours.toFixed(2)} hrs
                             (${balance >= 0 ? '+' : ''}${balance.toFixed(2)} hrs)
                         </div>
                     </div>
@@ -857,12 +857,12 @@
         function updateStats() {
             const groupedSlots = groupByDate(state.timeSlots);
             const totalDays = Object.keys(groupedSlots).length;
-            
+
             let totalHours = 0;
             let totalBalance = 0;
 
             Object.values(groupedSlots).forEach(slots => {
-                const dayHours = slots.reduce((sum, slot) => 
+                const dayHours = slots.reduce((sum, slot) =>
                     sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
                 totalHours += dayHours;
                 totalBalance += dayHours - 8;
@@ -872,7 +872,7 @@
 
             document.getElementById('totalDays').textContent = totalDays;
             document.getElementById('avgHours').textContent = avgHours.toFixed(2);
-            document.getElementById('totalBalance').textContent = 
+            document.getElementById('totalBalance').textContent =
                 `${totalBalance >= 0 ? '+' : ''}${totalBalance.toFixed(2)}`;
             document.getElementById('totalHours').textContent = totalHours.toFixed(2);
 
@@ -889,7 +889,7 @@
             const groupedByMonth = groupByMonth(state.timeSlots);
             const labels = Object.keys(groupedByMonth).map(month => new Date(month).toLocaleString('default', { month: 'long', year: 'numeric' })).reverse();
             const data = Object.values(groupedByMonth).map(slots => {
-                const totalHours = slots.reduce((sum, slot) => 
+                const totalHours = slots.reduce((sum, slot) =>
                     sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
                 const totalDays = new Set(slots.map(slot => slot.startDateTime.toISOString().split('T')[0])).size;
                 return (totalHours - (totalDays * 8)) / totalDays;

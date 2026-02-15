@@ -9,6 +9,8 @@ import { registerEffect, isEffectEnabled, initEffects, getAllEffects, toggleEffe
 // Import tasks (they self-register on import)
 import './tasks/file-sort.js';
 import './tasks/spam-delete.js';
+import './tasks/defrag.js';
+import './tasks/data-pipeline.js';
 
 // ==================== CONTEXT MENU ====================
 
@@ -336,6 +338,8 @@ function switchTask(taskName) {
 
 document.getElementById('task-file-sort').addEventListener('click', () => switchTask('file-sort'));
 document.getElementById('task-spam-delete').addEventListener('click', () => switchTask('spam-delete'));
+document.getElementById('task-defrag').addEventListener('click', () => switchTask('defrag'));
+document.getElementById('task-data-pipeline').addEventListener('click', () => switchTask('data-pipeline'));
 
 // Settings handler
 document.getElementById('settings-item').addEventListener('click', () => {

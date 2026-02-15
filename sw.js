@@ -1,20 +1,36 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v17';
+const CACHE_NAME = 'static-tools-v19';
 
 // Files to cache on install
 const PRECACHE_URLS = [
   '/tools/',
   '/tools/index.html',
   '/tools/manifest.json',
+
   '/tools/style.css',
+
   '/tools/spidey/index.html',
+
   '/tools/rank-it/index.html',
+
   '/tools/sleeptimer/index.html',
+
   '/tools/streaks/index.html',
+
   '/tools/torch/index.html',
+
   '/tools/wheel-of-fortune/index.html',
+
   '/tools/parrot/index.html',
+
   '/tools/tic-tac-toe/index.html',
+
+  '/tools/minesweeper/index.html',
+
+  '/tools/workouts/index.html',
+  '/tools/workouts/app.js',
+  '/tools/workouts/styles.css',
+
   '/tools/montag/index.html',
   '/tools/montag/main.js',
   '/tools/montag/engine/state.js',
@@ -25,10 +41,8 @@ const PRECACHE_URLS = [
   '/tools/montag/engine/effects.js',
   '/tools/montag/tasks/file-sort.js',
   '/tools/montag/tasks/spam-delete.js',
-  '/tools/minesweeper/index.html',
-  '/tools/workouts/index.html',
-  '/tools/workouts/app.js',
-  '/tools/workouts/styles.css'
+  '/tools/montag/tasks/defrag.js',
+  '/tools/montag/tasks/data-pipeline.js',
 ];
 
 // Install event - cache core assets

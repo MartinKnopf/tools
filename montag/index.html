@@ -1006,6 +1006,300 @@
             box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
+        /* ==================== DEFRAG GAME ==================== */
+        .defrag-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: #000;
+        }
+
+        .defrag-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            background: #c0c0c0;
+            border-bottom: 1px solid #808080;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .defrag-toolbar-label {
+            font-weight: bold;
+        }
+
+        .defrag-move-count {
+            color: #000080;
+        }
+
+        .defrag-grid {
+            display: grid;
+            gap: 2px;
+            padding: 8px;
+            flex: 1;
+            background: #101010;
+            align-content: center;
+            justify-content: center;
+        }
+
+        .defrag-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            font-size: 16px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.1s ease-out, background-color 0.2s;
+        }
+
+        .defrag-cell:hover:not(.defrag-cell-empty) {
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .defrag-cell:active:not(.defrag-cell-empty) {
+            transform: scale(0.95);
+        }
+
+        .defrag-cell-empty {
+            background: #101010 !important;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            cursor: default;
+        }
+
+        .defrag-cell-correct {
+            border-color: rgba(0, 255, 0, 0.4);
+            box-shadow: inset 0 0 6px rgba(0, 255, 0, 0.15);
+        }
+
+        .defrag-progress-area {
+            padding: 6px 8px;
+            background: #c0c0c0;
+            border-top: 1px solid #808080;
+        }
+
+        .defrag-status-text {
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 4px;
+            color: #000;
+        }
+
+        .defrag-progress-track {
+            height: 14px;
+            background: #fff;
+            border: 1px inset #808080;
+        }
+
+        .defrag-progress-bar {
+            height: 100%;
+            background: #000080;
+            width: 0%;
+            transition: width 0.3s ease-out;
+        }
+
+        /* ==================== DATA PIPELINE / BATCH JOBS ==================== */
+        .work-queue-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .work-queue-table thead {
+            background: #c0c0c0;
+            border-bottom: 1px solid #808080;
+        }
+
+        .work-queue-table th {
+            text-align: left;
+            padding: 3px 6px;
+            font-weight: bold;
+            font-size: 11px;
+            border-right: 1px solid #808080;
+        }
+
+        .work-queue-table td {
+            padding: 3px 6px;
+            border-bottom: 1px solid #e0e0e0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+
+        .work-queue-table tbody tr:hover {
+            background: #e8e8ff;
+        }
+
+        .work-queue-table .wq-step-hint {
+            color: #000080;
+            font-weight: bold;
+            max-width: 200px;
+        }
+
+        .program-toolbar {
+            display: flex;
+            gap: 2px;
+            padding: 4px 6px;
+            background: #c0c0c0;
+            border-bottom: 1px solid #808080;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            flex-wrap: wrap;
+        }
+
+        .program-content {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .program-progress {
+            height: 16px;
+            background: #fff;
+            border: 2px inset #808080;
+            overflow: hidden;
+        }
+
+        .program-progress-bar {
+            height: 100%;
+            background: #000080;
+            width: 0%;
+            transition: width 0.15s ease-out;
+        }
+
+        .pipeline-btn {
+            background: #c0c0c0;
+            border: 2px outset #fff;
+            padding: 2px 10px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+        }
+
+        .pipeline-btn:active {
+            border-style: inset;
+        }
+
+        .pipeline-btn:disabled {
+            color: #808080;
+            cursor: default;
+        }
+
+        .ftp-pane {
+            flex: 1;
+            background: #fff;
+            border: 1px inset #808080;
+            min-width: 0;
+            overflow: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .data-table th {
+            background: #c0c0c0;
+            text-align: left;
+            padding: 3px 6px;
+            font-weight: bold;
+            border: 1px solid #808080;
+        }
+
+        .data-table td {
+            padding: 3px 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .log-line {
+            padding: 1px 4px;
+            color: #808080;
+            line-height: 1.6;
+        }
+
+        .log-line-error {
+            color: #ff0000;
+            font-weight: bold;
+        }
+
+        .log-line-ok {
+            color: #008000;
+        }
+
+        .query-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 8px;
+            background: #c0c0c0;
+            border-top: 1px solid #808080;
+            flex-wrap: wrap;
+        }
+
+        .query-bar select {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 1px 4px;
+            border: 2px inset #808080;
+        }
+
+        /* ==================== NOTEPAD (FIND & REPLACE) ==================== */
+        .notepad-content {
+            flex: 1;
+            overflow: auto;
+            padding: 8px;
+            background: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            border: 2px inset #808080;
+        }
+
+        .notepad-highlight {
+            background: #ffff00;
+            padding: 0 1px;
+        }
+
+        /* ==================== MODEM TERMINAL ==================== */
+        .modem-terminal {
+            flex: 1;
+            overflow: auto;
+            padding: 8px;
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .modem-terminal .modem-error {
+            color: #ff0000;
+            font-weight: bold;
+        }
+
+        /* ==================== PAINT CANVAS ==================== */
+        .paint-canvas-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            background: repeating-conic-gradient(#e0e0e0 0% 25%, #fff 0% 50%);
+            background-size: 8px 8px;
+            overflow: hidden;
+        }
+
         /* ==================== RESPONSIVE ==================== */
         @media (max-width: 768px) {
             .file, .folder {
@@ -1047,6 +1341,33 @@
                 font-size: 11px;
                 white-space: nowrap;
             }
+
+            .defrag-cell {
+                width: 40px;
+                height: 40px;
+                font-size: 14px;
+            }
+
+            .query-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .query-bar select {
+                width: 100%;
+            }
+
+            .ftp-pane {
+                min-height: 80px;
+            }
+
+            .notepad-content {
+                font-size: 10px;
+            }
+
+            .modem-terminal {
+                font-size: 10px;
+            }
         }
     </style>
 </head>
@@ -1082,6 +1403,8 @@
             <div id="programs-submenu" class="programs-submenu">
                 <div class="start-menu-item" id="task-file-sort">File Sorting</div>
                 <div class="start-menu-item" id="task-spam-delete">Spam Deletion</div>
+                <div class="start-menu-item" id="task-defrag">Disk Defrag</div>
+                <div class="start-menu-item" id="task-data-pipeline">Batch Jobs</div>
             </div>
             <div class="start-menu-item">Documents ▶</div>
             <div class="start-menu-item" id="settings-item">Settings ▶</div>

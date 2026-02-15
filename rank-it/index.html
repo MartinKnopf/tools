@@ -13,20 +13,13 @@
     <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
     <link rel="stylesheet" href="../style.css" />
     <style>
-      .header-btn {
-        width: auto;
-      }
-
       /* Back button in items view */
       .back-btn {
         width: auto;
       }
 
-      /* List cards (lists view) */
+      /* List cards */
       .list-card {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         cursor: pointer;
         transition: opacity 0.15s ease;
         -webkit-tap-highlight-color: transparent;
@@ -36,55 +29,20 @@
         opacity: 0.7;
       }
 
-      .list-card-name {
-        font-weight: 600;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        min-width: 0;
-        flex: 1;
-      }
-
-      .list-card-count {
-        color: var(--muted-foreground);
-        white-space: nowrap;
-      }
-
-      /* Subtle edit button on list cards */
       .list-card-edit {
         background: none;
         border: none;
         cursor: pointer;
         width: auto;
-        color: var(--muted-foreground);
         flex-shrink: 0;
       }
 
-      .list-card-edit:hover {
-        color: var(--foreground);
-      }
-
-      /* Inline edit form shown when editing a list card */
-      .list-card-inline-edit {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .list-card-inline-actions {
-        display: flex;
-        gap: 0.5rem;
-      }
-
-      .list-card-inline-actions button {
+      .inline-actions button {
         flex: 1;
       }
 
-      /* Item cards (items view) */
+      /* Item cards */
       .item-card {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
         transition: opacity 0.15s ease, transform 0.15s ease;
         -webkit-tap-highlight-color: transparent;
       }
@@ -98,26 +56,11 @@
       }
 
       .item-rank {
-        font-weight: 700;
-        color: var(--primary);
-        white-space: nowrap;
         min-width: 2rem;
       }
 
       .item-text {
-        flex: 1;
-        min-width: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
         cursor: pointer;
-      }
-
-      .item-actions {
-        display: flex;
-        gap: 0.2rem;
-        align-items: center;
-        flex-shrink: 0;
       }
 
       .item-action-btn {
@@ -125,21 +68,11 @@
         border: none;
         cursor: pointer;
         width: auto;
-        color: var(--muted-foreground);
-      }
-
-      .item-action-btn:hover {
-        color: var(--foreground);
-      }
-
-      .item-action-btn.delete-item {
-        color: var(--danger);
       }
 
       /* Drag handle */
       .drag-handle {
         cursor: grab;
-        color: var(--muted-foreground);
         touch-action: none;
         user-select: none;
       }
@@ -158,21 +91,16 @@
         pointer-events: none;
         z-index: 9999;
         opacity: 0.8;
-        background: var(--card);
-        border-radius: var(--radius-medium);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       }
 
       /* Drop indicator line */
       .drop-indicator {
         height: 2px;
-        background: var(--primary);
-        border-radius: 1px;
         pointer-events: none;
       }
     </style>
   </head>
-  <body>
+  <body data-theme="dark">
     <main class="container">
 
       <!-- Lists view -->
@@ -181,7 +109,7 @@
           <h1>Rank it</h1>
           <button class="header-btn" id="add-list-btn" aria-label="Add list">+</button>
         </div>
-        <ul class="card-list" id="lists-container"></ul>
+        <div class="flex flex-col gap-2" id="lists-container"></div>
         <p class="empty-state" id="lists-empty" hidden>
           No lists yet. Tap + to create one.
         </p>
@@ -194,7 +122,7 @@
           <h1 id="items-title" class="flex-1 min-w-0 text-ellipsis" style="margin-left:0.8rem;"></h1>
           <button class="header-btn" id="add-item-btn" aria-label="Add item">+</button>
         </div>
-        <ul class="card-list" id="items-container"></ul>
+        <div class="flex flex-col gap-2" id="items-container"></div>
         <p class="empty-state" id="items-empty" hidden>
           No items yet. Tap + to add one.
         </p>
@@ -332,47 +260,42 @@
         listsEmpty.hidden = true;
 
         lists.forEach(function(list) {
-          var li = document.createElement('li');
-          li.dataset.id = list.id;
+          var article = document.createElement('article');
+          article.dataset.id = list.id;
+          article.className = 'list-card flex justify-between items-center';
 
           var itemCount = list.items ? list.items.length : 0;
           var countLabel = itemCount === 1 ? '1 item' : itemCount + ' items';
 
-          /* Default card view */
-          var card = document.createElement('div');
-          card.className = 'list-card card';
-
-          card.innerHTML =
-            '<span class="list-card-name">' + escapeHtml(list.name) + '</span>' +
-            '<span class="list-card-count">' + countLabel + '</span>' +
-            '<button class="list-card-edit" title="Edit list">&hellip;</button>';
+          article.innerHTML =
+            '<strong class="flex-1 min-w-0 text-ellipsis">' + escapeHtml(list.name) + '</strong>' +
+            '<small class="text-lighter shrink-0">' + countLabel + '</small>' +
+            '<button class="list-card-edit text-lighter" title="Edit list">&hellip;</button>';
 
           /* Tap card to open list */
-          card.addEventListener('click', function() {
+          article.addEventListener('click', function() {
             showItemsView(list.id);
           });
 
           /* Edit button opens inline edit form */
-          card.querySelector('.list-card-edit').addEventListener('click', function(e) {
+          article.querySelector('.list-card-edit').addEventListener('click', function(e) {
             e.stopPropagation();
-            showInlineEdit(li, list.id);
+            showInlineEdit(article, list.id);
           });
 
-          li.appendChild(card);
-          listsContainer.appendChild(li);
+          listsContainer.appendChild(article);
         });
       }
 
       /* Show inline rename/delete form for a list card */
-      function showInlineEdit(li, listId) {
+      function showInlineEdit(article, listId) {
         var lists = loadLists();
         var list = lists.find(function(l) { return l.id === listId; });
         if (!list) return;
 
         /* Replace card content with inline edit form */
-        li.innerHTML = '';
-        var form = document.createElement('div');
-        form.className = 'list-card-inline-edit card';
+        article.className = 'form-stack';
+        article.innerHTML = '';
 
         var input = document.createElement('input');
         input.type = 'text';
@@ -380,7 +303,7 @@
         input.setAttribute('aria-label', 'List name');
 
         var actions = document.createElement('div');
-        actions.className = 'list-card-inline-actions';
+        actions.className = 'inline-actions flex gap-sm';
 
         var saveBtn = document.createElement('button');
         saveBtn.textContent = 'Save';
@@ -396,9 +319,8 @@
         actions.appendChild(saveBtn);
         actions.appendChild(deleteBtn);
         actions.appendChild(cancelBtn);
-        form.appendChild(input);
-        form.appendChild(actions);
-        li.appendChild(form);
+        article.appendChild(input);
+        article.appendChild(actions);
 
         input.focus();
         input.select();
@@ -462,55 +384,55 @@
         itemsEmpty.hidden = true;
 
         list.items.forEach(function(item, index) {
-          var li = document.createElement('li');
-          li.className = 'item-card card';
-          li.dataset.id = item.id;
-          li.dataset.index = index;
-          li.draggable = true;
+          var article = document.createElement('article');
+          article.className = 'item-card flex items-center gap-sm';
+          article.dataset.id = item.id;
+          article.dataset.index = index;
+          article.draggable = true;
 
-          li.innerHTML =
-            '<span class="drag-handle" title="Drag to reorder">&#9776;</span>' +
-            '<span class="item-rank">#' + (index + 1) + '</span>' +
-            '<span class="item-text">' + escapeHtml(item.text) + '</span>' +
-            '<div class="item-actions">' +
-              '<button class="item-action-btn move-up" title="Move up" ' +
+          article.innerHTML =
+            '<span class="drag-handle text-lighter" title="Drag to reorder">&#9776;</span>' +
+            '<strong class="item-rank">#' + (index + 1) + '</strong>' +
+            '<span class="item-text flex-1 min-w-0 text-ellipsis">' + escapeHtml(item.text) + '</span>' +
+            '<nav class="flex items-center shrink-0">' +
+              '<button class="item-action-btn text-lighter move-up" title="Move up" ' +
                 (index === 0 ? 'disabled' : '') + '>&#9650;</button>' +
-              '<button class="item-action-btn move-down" title="Move down" ' +
+              '<button class="item-action-btn text-lighter move-down" title="Move down" ' +
                 (index === list.items.length - 1 ? 'disabled' : '') + '>&#9660;</button>' +
               '<button class="item-action-btn delete-item" title="Remove">&times;</button>' +
-            '</div>';
+            '</nav>';
 
           /* Tap item text to rename */
-          li.querySelector('.item-text').addEventListener('click', function() {
+          article.querySelector('.item-text').addEventListener('click', function() {
             openRenameItemDialog(item.id, item.text);
           });
 
           /* Move up */
-          li.querySelector('.move-up').addEventListener('click', function(e) {
+          article.querySelector('.move-up').addEventListener('click', function(e) {
             e.stopPropagation();
             moveItem(item.id, -1);
           });
 
           /* Move down */
-          li.querySelector('.move-down').addEventListener('click', function(e) {
+          article.querySelector('.move-down').addEventListener('click', function(e) {
             e.stopPropagation();
             moveItem(item.id, 1);
           });
 
           /* Delete */
-          li.querySelector('.delete-item').addEventListener('click', function(e) {
+          article.querySelector('.delete-item').addEventListener('click', function(e) {
             e.stopPropagation();
             removeItem(item.id);
           });
 
           /* Desktop drag-and-drop */
-          li.addEventListener('dragstart', handleDragStart);
-          li.addEventListener('dragover', handleDragOver);
-          li.addEventListener('dragleave', handleDragLeave);
-          li.addEventListener('drop', handleDrop);
-          li.addEventListener('dragend', handleDragEnd);
+          article.addEventListener('dragstart', handleDragStart);
+          article.addEventListener('dragover', handleDragOver);
+          article.addEventListener('dragleave', handleDragLeave);
+          article.addEventListener('drop', handleDrop);
+          article.addEventListener('dragend', handleDragEnd);
 
-          itemsContainer.appendChild(li);
+          itemsContainer.appendChild(article);
         });
 
         /* Touch drag-and-drop setup */
