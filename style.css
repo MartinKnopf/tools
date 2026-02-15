@@ -1,10 +1,3 @@
-/* Pico overrites */
-:root,
-:host {
-  --pico-border-radius: 0.625rem;
-  --pico-form-element-spacing-vertical: 0.225rem;
-  --pico-form-element-spacing-horizontal: 0.625rem;
-}
 /* Shared Utility Classes for Tools */
 
 /* ===== DISPLAY ===== */
@@ -17,14 +10,6 @@
 }
 
 /* ===== FLEXBOX ===== */
-.flex {
-  display: flex;
-}
-
-.flex-col {
-  flex-direction: column;
-}
-
 .flex-wrap {
   flex-wrap: wrap;
 }
@@ -37,90 +22,32 @@
   flex-shrink: 0;
 }
 
-.items-center {
-  align-items: center;
-}
-
-.justify-center {
-  justify-content: center;
-}
-
-.justify-between {
-  justify-content: space-between;
-}
-
 .justify-end {
   justify-content: flex-end;
 }
 
-/* ===== GAP ===== */
+/* ===== GAP (flexbox/grid layout) ===== */
 .gap-xs {
-  gap: 0.2rem;
+  gap: var(--space-1);
 }
 
 .gap-sm {
-  gap: 0.3rem;
+  gap: var(--space-2);
 }
 
 .gap-md {
-  gap: 0.5rem;
+  gap: var(--space-3);
 }
 
 .gap-lg {
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .gap-xl {
-  gap: 1.5rem;
-}
-
-/* ===== MARGIN ===== */
-.m-0 {
-  margin: 0;
-}
-
-.mt-sm {
-  margin-top: 0.3rem;
-}
-
-.mt-md {
-  margin-top: 0.5rem;
-}
-
-.mb-0 {
-  margin-bottom: 0;
-}
-
-.mb-sm {
-  margin-bottom: 0.3rem;
-}
-
-.mb-md {
-  margin-bottom: 0.5rem;
-}
-
-.mb-lg {
-  margin-bottom: 1rem;
-}
-
-/* ===== PADDING ===== */
-.p-0 {
-  padding: 0;
-}
-
-.p-sm {
-  padding: 0.3rem;
-}
-
-.p-md {
-  padding: 0.5rem;
+  gap: var(--space-6);
 }
 
 /* ===== WIDTH ===== */
-.w-full {
-  width: 100%;
-}
-
 .w-auto {
   width: auto;
 }
@@ -130,23 +57,10 @@
 }
 
 /* ===== TEXT ===== */
-.text-center {
-  text-align: center;
-}
-
 .text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.border-radius {
-  border-radius: var(--pico-border-radius);
-}
-
-/* ===== COLORS ===== */
-.bg-card {
-  background: var(--pico-card-background-color);
 }
 
 /* ===== COMPOSITE PATTERNS ===== */
@@ -166,8 +80,7 @@
 /* Empty state placeholder */
 .empty-state {
   text-align: center;
-  color: var(--pico-muted-color);
-  padding: 2rem 1rem;
+  color: var(--muted-foreground);
 }
 
 /* View toggling for multi-view pages */
@@ -175,28 +88,18 @@
   display: none;
 }
 
-/* Narrow dialog for forms */
-.dialog-narrow article {
-  max-width: 500px;
-}
-
-.dialog-narrow article,
-.dialog-narrow header {
-  padding: 1rem;
-}
-
 /* Dialog action buttons stacked vertically */
 .dialog-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 /* Form field stack */
 .form-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .form-stack label,
@@ -208,7 +111,7 @@
 /* Horizontal form row (input + button) */
 .form-row {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .form-row input {
@@ -218,9 +121,4 @@
 
 .form-row button {
   margin-bottom: 0;
-}
-
-/* Danger button */
-.btn-danger {
-  background-color: var(--pico-del-color);
 }

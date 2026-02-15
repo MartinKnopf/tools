@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v16';
+const CACHE_NAME = 'static-tools-v17';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -24,7 +24,11 @@ const PRECACHE_URLS = [
   '/tools/montag/engine/waves.js',
   '/tools/montag/engine/effects.js',
   '/tools/montag/tasks/file-sort.js',
-  '/tools/montag/tasks/spam-delete.js'
+  '/tools/montag/tasks/spam-delete.js',
+  '/tools/minesweeper/index.html',
+  '/tools/workouts/index.html',
+  '/tools/workouts/app.js',
+  '/tools/workouts/styles.css'
 ];
 
 // Install event - cache core assets
@@ -72,19 +76,21 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Skip cross-origin requests (like Pico CSS from CDN)
+  // Skip cross-origin requests (like oat CSS/JS from CDN)
   if (!request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  // For HTML pages: network first, fallback to cache
+  // For HTML and JS: network first, fallback to cache
   // This ensures pull-to-refresh gets fresh content
-  if (request.headers.get('Accept').includes('text/html')) {
+  var isHTML = request.headers.get('Accept').includes('text/html');
+  var isJS = request.url.endsWith('.js') && !request.url.endsWith('sw.js');
+  if (isHTML || isJS) {
     event.respondWith(
       fetch(request)
         .then(function(response) {
           // Clone and cache the fresh response
-          const responseClone = response.clone();
+          var responseClone = response.clone();
           caches.open(CACHE_NAME)
             .then(function(cache) {
               cache.put(request, responseClone);

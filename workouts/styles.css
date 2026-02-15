@@ -138,9 +138,35 @@ textarea {
   font-weight: bold;
 }
 
+.session-date {
+  cursor: pointer;
+  border-bottom: 1px dashed #999;
+}
+
+.session-date-input {
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 0 0.25rem;
+  border: 1px solid #999;
+  border-radius: 2px;
+  max-width: 140px;
+}
+
 .session-template{
   font-weight: normal;
   margin-left: 0.5rem;
+}
+
+.session-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.delete-session-btn {
+  font-size: 1rem;
+  padding: 0 0.3rem;
+  line-height: 1;
 }
 
 .exercises {

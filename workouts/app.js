@@ -393,6 +393,26 @@ function saveExerciseNotes(sessionId, exerciseIndex, notes) {
     saveData();
 }
 
+// Delete a workout session
+function deleteSession(sessionId) {
+    if (!confirm('Delete this session?')) return;
+    appData.sessions = appData.sessions.filter(s => s.id !== sessionId);
+    saveData();
+    renderSessions();
+}
+
+// Save session date
+function saveSessionDate(sessionId, newDate) {
+    const sessionIndex = appData.sessions.findIndex(s => s.id === sessionId);
+    if (sessionIndex === -1) return;
+
+    appData.sessions[sessionIndex].date = newDate;
+    // Re-sort sessions by date descending (latest first)
+    appData.sessions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    saveData();
+    renderSessions();
+}
+
 // Toggle session collapse state
 function toggleSessionCollapse(sessionId) {
     const sessionIndex = appData.sessions.findIndex(s => s.id === sessionId);
@@ -423,10 +443,46 @@ function renderSessions() {
         const header = document.createElement('div');
         header.className = 'session-header';
         header.innerHTML = `
-            <div class="session-title">${String(session.date || '')} <span class="session-template">${String(session.templateName || '')}</span></div>
-            <div class="session-subtitle">${completedCount}/${totalCount}</div>
+            <div class="session-title"><span class="session-date">${String(session.date || '')}</span> <span class="session-template">${String(session.templateName || '')}</span></div>
+            <div class="session-header-right">
+                <span class="session-subtitle">${completedCount}/${totalCount}</span>
+                <button class="delete-btn delete-session-btn">&times;</button>
+            </div>
         `;
         header.addEventListener('click', () => toggleSessionCollapse(session.id));
+
+        // Delete session button
+        header.querySelector('.delete-session-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteSession(session.id);
+        });
+
+        // Date editing: clicking the date opens an inline date picker
+        const dateSpan = header.querySelector('.session-date');
+        dateSpan.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.className = 'session-date-input';
+            dateInput.value = session.date || '';
+            dateSpan.replaceWith(dateInput);
+            dateInput.focus();
+
+            // Save on change or blur (guard against double-fire)
+            let committed = false;
+            const commitDate = () => {
+                if (committed) return;
+                committed = true;
+                if (dateInput.value) {
+                    saveSessionDate(session.id, dateInput.value);
+                } else {
+                    renderSessions();
+                }
+            };
+            dateInput.addEventListener('change', commitDate);
+            dateInput.addEventListener('blur', commitDate);
+            dateInput.addEventListener('click', (ev) => ev.stopPropagation());
+        });
         sessionEl.appendChild(header);
         
         // Session content (exercises)
