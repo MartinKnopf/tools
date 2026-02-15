@@ -5,31 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#1095c1" />
+    <meta name="theme-color" content="#574747" />
     <title>Rank it</title>
     <link rel="manifest" href="../manifest.json" />
     <link rel="apple-touch-icon" href="../icons/icon-192.png" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
-    />
+    <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css" />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
     <link rel="stylesheet" href="../style.css" />
     <style>
       .header-btn {
         width: auto;
-        padding: 0.4rem 0.8rem;
-        margin: 0;
-        font-size: 1.2rem;
-        line-height: 1;
       }
 
       /* Back button in items view */
       .back-btn {
         width: auto;
-        padding: 0.4rem 0.8rem;
-        margin: 0;
-        font-size: 1rem;
-        line-height: 1;
       }
 
       /* List cards (lists view) */
@@ -37,9 +27,6 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.8rem 1rem;
-        background: var(--pico-card-background-color);
-        border-radius: 0.5rem;
         cursor: pointer;
         transition: opacity 0.15s ease;
         -webkit-tap-highlight-color: transparent;
@@ -59,10 +46,8 @@
       }
 
       .list-card-count {
-        font-size: 0.85rem;
-        color: var(--pico-muted-color);
+        color: var(--muted-foreground);
         white-space: nowrap;
-        padding-left: 1rem;
       }
 
       /* Subtle edit button on list cards */
@@ -70,18 +55,13 @@
         background: none;
         border: none;
         cursor: pointer;
-        padding: 0.3rem 0.4rem;
-        margin: 0;
         width: auto;
-        font-size: 0.85rem;
-        line-height: 1;
-        color: var(--pico-muted-color);
+        color: var(--muted-foreground);
         flex-shrink: 0;
-        letter-spacing: 1px;
       }
 
       .list-card-edit:hover {
-        color: var(--pico-color);
+        color: var(--foreground);
       }
 
       /* Inline edit form shown when editing a list card */
@@ -89,15 +69,6 @@
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-        padding: 0.8rem 1rem;
-        background: var(--pico-card-background-color);
-        border-radius: 0.5rem;
-      }
-
-      .list-card-inline-edit input {
-        margin: 0;
-        padding: 0.4rem 0.6rem;
-        font-size: 0.9rem;
       }
 
       .list-card-inline-actions {
@@ -107,17 +78,12 @@
 
       .list-card-inline-actions button {
         flex: 1;
-        margin: 0;
-        padding: 0.4rem 0.6rem;
       }
 
       /* Item cards (items view) */
       .item-card {
         display: flex;
         align-items: center;
-        padding: 0.6rem 0.8rem;
-        background: var(--pico-card-background-color);
-        border-radius: 0.5rem;
         gap: 0.5rem;
         transition: opacity 0.15s ease, transform 0.15s ease;
         -webkit-tap-highlight-color: transparent;
@@ -128,13 +94,12 @@
       }
 
       .item-card.drag-over {
-        border-top: 2px solid var(--pico-primary);
+        border-top: 2px solid var(--primary);
       }
 
       .item-rank {
-        font-size: 0.85rem;
         font-weight: 700;
-        color: var(--pico-primary);
+        color: var(--primary);
         white-space: nowrap;
         min-width: 2rem;
       }
@@ -159,29 +124,22 @@
         background: none;
         border: none;
         cursor: pointer;
-        padding: 0.3rem 0.4rem;
-        font-size: 0.9rem;
         width: auto;
-        margin: 0;
-        color: var(--pico-muted-color);
-        line-height: 1;
+        color: var(--muted-foreground);
       }
 
       .item-action-btn:hover {
-        color: var(--pico-color);
+        color: var(--foreground);
       }
 
       .item-action-btn.delete-item {
-        color: var(--pico-del-color);
+        color: var(--danger);
       }
 
       /* Drag handle */
       .drag-handle {
         cursor: grab;
-        color: var(--pico-muted-color);
-        font-size: 1rem;
-        padding: 0.3rem 0.2rem;
-        line-height: 1;
+        color: var(--muted-foreground);
         touch-action: none;
         user-select: none;
       }
@@ -192,7 +150,6 @@
 
       .dialog-actions button {
         width: 100%;
-        margin: 0;
       }
 
       /* Touch drag ghost element */
@@ -201,28 +158,26 @@
         pointer-events: none;
         z-index: 9999;
         opacity: 0.8;
-        background: var(--pico-card-background-color);
-        border-radius: 0.5rem;
-        padding: 0.6rem 0.8rem;
+        background: var(--card);
+        border-radius: var(--radius-medium);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       }
 
       /* Drop indicator line */
       .drop-indicator {
         height: 2px;
-        background: var(--pico-primary);
+        background: var(--primary);
         border-radius: 1px;
-        margin: -1px 0;
         pointer-events: none;
       }
     </style>
   </head>
   <body>
-    <main class="container container">
+    <main class="container">
 
       <!-- Lists view -->
       <div id="lists-view">
-        <div class="header-row mb-md">
+        <div class="header-row mb-2">
           <h1>Rank it</h1>
           <button class="header-btn" id="add-list-btn" aria-label="Add list">+</button>
         </div>
@@ -234,8 +189,8 @@
 
       <!-- Items view -->
       <div class="view-hidden" id="items-view">
-        <div class="header-row mb-md">
-          <button class="back-btn secondary" id="back-btn" aria-label="Back">&larr;</button>
+        <div class="header-row mb-2">
+          <button class="back-btn" data-variant="secondary" id="back-btn" aria-label="Back">&larr;</button>
           <h1 id="items-title" class="flex-1 min-w-0 text-ellipsis" style="margin-left:0.8rem;"></h1>
           <button class="header-btn" id="add-item-btn" aria-label="Add item">+</button>
         </div>
@@ -248,37 +203,37 @@
     </main>
 
     <!-- Add/Rename list dialog -->
-    <dialog id="list-dialog" class="dialog-narrow">
-      <article>
-        <header>
-          <h3 id="list-dialog-title">New List</h3>
-        </header>
+    <dialog id="list-dialog">
+      <header>
+        <h3 id="list-dialog-title">New List</h3>
+      </header>
+      <section>
         <div class="form-stack">
           <label for="list-name-input">Name</label>
           <input type="text" id="list-name-input" placeholder="List name" />
         </div>
         <div class="dialog-actions">
           <button id="list-dialog-save">Save</button>
-          <button class="secondary" id="list-dialog-cancel">Cancel</button>
+          <button data-variant="secondary" id="list-dialog-cancel">Cancel</button>
         </div>
-      </article>
+      </section>
     </dialog>
 
     <!-- Add/Rename item dialog -->
-    <dialog id="item-dialog" class="dialog-narrow">
-      <article>
-        <header>
-          <h3 id="item-dialog-title">New Item</h3>
-        </header>
+    <dialog id="item-dialog">
+      <header>
+        <h3 id="item-dialog-title">New Item</h3>
+      </header>
+      <section>
         <div class="form-stack">
           <label for="item-text-input">Item</label>
           <input type="text" id="item-text-input" placeholder="Item text" />
         </div>
         <div class="dialog-actions">
           <button id="item-dialog-save">Save</button>
-          <button class="secondary" id="item-dialog-cancel">Cancel</button>
+          <button data-variant="secondary" id="item-dialog-cancel">Cancel</button>
         </div>
-      </article>
+      </section>
     </dialog>
 
     <script>
@@ -385,7 +340,7 @@
 
           /* Default card view */
           var card = document.createElement('div');
-          card.className = 'list-card';
+          card.className = 'list-card card';
 
           card.innerHTML =
             '<span class="list-card-name">' + escapeHtml(list.name) + '</span>' +
@@ -417,7 +372,7 @@
         /* Replace card content with inline edit form */
         li.innerHTML = '';
         var form = document.createElement('div');
-        form.className = 'list-card-inline-edit';
+        form.className = 'list-card-inline-edit card';
 
         var input = document.createElement('input');
         input.type = 'text';
@@ -431,11 +386,11 @@
         saveBtn.textContent = 'Save';
 
         var deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn-danger';
+        deleteBtn.setAttribute('data-variant', 'danger');
         deleteBtn.textContent = 'Delete';
 
         var cancelBtn = document.createElement('button');
-        cancelBtn.className = 'secondary';
+        cancelBtn.setAttribute('data-variant', 'secondary');
         cancelBtn.textContent = 'Cancel';
 
         actions.appendChild(saveBtn);
@@ -508,7 +463,7 @@
 
         list.items.forEach(function(item, index) {
           var li = document.createElement('li');
-          li.className = 'item-card';
+          li.className = 'item-card card';
           li.dataset.id = item.id;
           li.dataset.index = index;
           li.draggable = true;

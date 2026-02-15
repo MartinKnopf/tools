@@ -5,25 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#1095c1" />
+    <meta name="theme-color" content="#574747" />
     <title>Wheel of Fortune</title>
     <link rel="manifest" href="../manifest.json" />
     <link rel="apple-touch-icon" href="../icons/icon-192.png" />
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+      href="https://unpkg.com/@knadh/oat/oat.min.css"
     />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
     <link rel="stylesheet" href="../style.css" />
     <style>
       /* Back button */
       .back-btn {
         background: none;
         border: none;
-        color: var(--pico-primary);
+        color: var(--primary);
         cursor: pointer;
-        padding: 0;
-        font-size: 1rem;
-        margin-bottom: 0.5rem;
         display: inline-flex;
         align-items: center;
         gap: 0.3rem;
@@ -32,14 +30,77 @@
         text-decoration: underline;
       }
 
+      /* Utility classes used by JS-generated elements */
+      .p-md {
+        padding: var(--space-4);
+      }
+      .bg-card {
+        background: var(--card);
+      }
+      .border-radius {
+        border-radius: var(--radius-medium);
+      }
+
+      /* Card list reset */
+      .card-list {
+        list-style: none;
+        padding-inline-start: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      /* Card item layout */
+      .card-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        background: var(--card);
+        border-radius: var(--radius-medium);
+      }
+
+      .card-item .item-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .card-item .item-actions {
+        flex-shrink: 0;
+        display: flex;
+        gap: var(--space-2);
+      }
+
+      .card-item .rename-btn,
+      .card-item .delete-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--muted-foreground);
+        width: auto;
+      }
+      .card-item .rename-btn:hover,
+      .card-item .delete-btn:hover {
+        color: var(--foreground);
+      }
+
       /* Inline rename input */
       .card-item input.inline-rename {
         flex: 1;
         min-width: 0;
-        margin: 0;
-        padding: 0.1rem 0.3rem;
-        font-size: inherit;
-        height: auto;
+      }
+
+      /* JS-created secondary outline button fallback */
+      button.secondary.outline {
+        background-color: transparent;
+        border-color: var(--border);
+        color: var(--secondary-foreground);
+      }
+      button.secondary.outline:hover:not(:disabled) {
+        background-color: color-mix(in srgb, var(--secondary), transparent 80%);
       }
 
       /* Wheel canvas area */
@@ -47,7 +108,6 @@
         position: relative;
         display: flex;
         justify-content: center;
-        margin: 1rem 0;
       }
 
       .wheel-canvas-container {
@@ -71,7 +131,7 @@
         height: 0;
         border-left: 14px solid transparent;
         border-right: 14px solid transparent;
-        border-top: 28px solid var(--pico-del-color);
+        border-top: 28px solid var(--danger);
         z-index: 10;
         filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
       }
@@ -80,20 +140,14 @@
       .spin-btn {
         display: block;
         width: 100%;
-        margin: 1rem 0;
-        font-size: 1.1rem;
       }
 
       /* Result banner */
       .result-banner {
         text-align: center;
-        padding: 1rem;
-        background: var(--pico-primary-background);
-        color: var(--pico-primary-inverse);
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        font-size: 1.2rem;
-        font-weight: bold;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border-radius: var(--radius-medium);
         display: none;
       }
       .result-banner.visible {
@@ -108,20 +162,20 @@
 
       /* Highlighted item after spin */
       .card-item.highlighted {
-        outline: 2px solid var(--pico-primary);
-        background: var(--pico-primary-focus);
+        outline: 2px solid var(--primary);
+        background: color-mix(in srgb, var(--primary), transparent 80%);
       }
 
     </style>
   </head>
   <body>
-    <main class="container app-container">
+    <main class="container">
 
       <!-- Wheels list view -->
       <div id="wheelsView">
         <h1>Wheel of Fortune</h1>
 
-        <div class="form-row mb-md">
+        <div class="form-row mb-4">
           <input type="text" id="newWheelInput" placeholder="New wheel name" aria-label="New wheel name" />
           <button id="addWheelBtn">Add</button>
         </div>
@@ -150,11 +204,11 @@
         <button class="spin-btn" id="spinBtn">Spin!</button>
 
         <!-- Items section -->
-        <div class="header-row mb-sm">
-          <h2 class="m-0">Items</h2>
+        <div class="header-row mb-2">
+          <h2>Items</h2>
         </div>
 
-        <div class="form-row mb-md">
+        <div class="form-row mb-4">
           <input type="text" id="newItemInput" placeholder="New item" aria-label="New item" />
           <button id="addItemBtn">Add</button>
         </div>

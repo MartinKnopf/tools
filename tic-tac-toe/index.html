@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#1095c1" />
+    <meta name="theme-color" content="#574747" />
     <title>Tic Tac Toe</title>
     <link rel="manifest" href="../manifest.json" />
     <link rel="apple-touch-icon" href="../icons/icon-192.png" />
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+      href="https://unpkg.com/@knadh/oat/oat.min.css"
     />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
     <link rel="stylesheet" href="../style.css" />
     <style>
       .mode-selector button.active {
@@ -25,9 +26,6 @@
 
       /* Status display */
       .status {
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin-bottom: 1rem;
         min-height: 1.8em;
       }
 
@@ -37,19 +35,17 @@
         grid-template-columns: repeat(3, 1fr);
         gap: 6px;
         max-width: 320px;
-        margin: 0 auto 1.5rem;
+        margin: 0 auto;
         aspect-ratio: 1;
       }
 
       .cell {
-        background: var(--pico-card-background-color);
-        border: 2px solid var(--pico-muted-border-color);
-        border-radius: 0.5rem;
+        background: var(--card);
+        border: 2px solid var(--border);
+        border-radius: var(--radius-medium);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 3rem;
-        font-weight: bold;
         cursor: pointer;
         user-select: none;
         -webkit-tap-highlight-color: transparent;
@@ -59,7 +55,7 @@
       }
 
       .cell:hover:not(.taken):not(.game-over) {
-        background: var(--pico-primary-focus);
+        background: color-mix(in srgb, var(--primary) 15%, transparent);
       }
 
       .cell:active:not(.taken):not(.game-over) {
@@ -162,7 +158,6 @@
         display: flex;
         justify-content: center;
         gap: 1.5rem;
-        margin-bottom: 1.5rem;
       }
 
       .score-item {
@@ -170,36 +165,18 @@
       }
 
       .score-label {
-        font-size: 0.8rem;
-        color: var(--pico-muted-color);
+        color: var(--muted-foreground);
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
 
-      .score-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-      }
-
       .score-value.x { color: #e74c3c; }
       .score-value.o { color: #3498db; }
-      .score-value.draw { color: var(--pico-muted-color); }
-
-      .actions button {
-        width: auto;
-        margin: 0;
-        padding: 0.5rem 1.2rem;
-        font-size: calc(var(--pico-font-size) * 0.9);
-      }
+      .score-value.draw { color: var(--muted-foreground); }
 
       .mode-selector button,
       .difficulty-selector button {
         width: auto;
-        margin: 0;
-      }
-
-      .difficulty-selector button {
-        font-size: calc(var(--pico-font-size) * 0.8);
       }
 
       .difficulty-selector button.active {
@@ -212,17 +189,17 @@
     </style>
   </head>
   <body>
-    <main class="container container text-center">
+    <main class="container text-center">
       <h1>Tic Tac Toe</h1>
 
       <!-- Mode selector -->
-      <div class="flex gap-md justify-center mb-lg">
+      <div class="flex gap-md justify-center mb-4">
         <button id="btnVsBot" class="active">vs Bot</button>
         <button id="btnVsHuman" class="outline">vs Human</button>
       </div>
 
       <!-- Difficulty selector (only visible in bot mode) -->
-      <div class="flex gap-md justify-center mb-md" id="difficultySelector">
+      <div class="flex gap-md justify-center mb-2" id="difficultySelector">
         <button id="btnEasy" class="outline">Easy</button>
         <button id="btnHard" class="active">Hard</button>
       </div>
@@ -265,7 +242,7 @@
       <!-- Actions -->
       <div class="flex gap-md justify-center flex-wrap">
         <button id="btnNewGame">New Game</button>
-        <button id="btnResetScores" class="outline secondary">Reset Scores</button>
+        <button id="btnResetScores" class="outline" data-variant="secondary">Reset Scores</button>
       </div>
     </main>
 
