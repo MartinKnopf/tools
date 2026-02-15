@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v16';
+const CACHE_NAME = 'static-tools-v17';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -66,7 +66,7 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Skip cross-origin requests (like Pico CSS from CDN)
+  // Skip cross-origin requests (like oat CSS/JS from CDN)
   if (!request.url.startsWith(self.location.origin)) {
     return;
   }

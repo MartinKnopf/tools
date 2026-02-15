@@ -4,10 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Torch</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
-    />
+    <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css" />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
     <link rel="stylesheet" href="../style.css" />
     <style>
       /* White background mode */
@@ -21,14 +19,11 @@
         justify-content: center;
         align-items: center;
         min-height: 100vh;
-        margin: 0;
-        padding: 1rem;
       }
 
       /* Torch toggle button */
       #torch-btn {
         font-size: 3rem;
-        padding: 1.5rem 2rem;
         cursor: pointer;
       }
     </style>
@@ -69,7 +64,7 @@
         }
       }
 
-      // Toggle between white and pico default background
+      // Toggle between white and oat default background
       function toggleMode() {
         const newMode = !isWhiteMode();
         saveWhiteMode(newMode);

@@ -6,8 +6,9 @@
     <title>SleepTimer</title>
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+      href="https://unpkg.com/@knadh/oat/oat.min.css"
     />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
     <link rel="stylesheet" href="../style.css" />
     <style>
       /* Settings button and menu */
@@ -19,10 +20,9 @@
         position: absolute;
         top: 100%;
         right: 0;
-        background: var(--pico-card-background-color);
-        border: 1px solid var(--pico-muted-border-color);
-        border-radius: var(--pico-border-radius);
-        padding: 0.5rem;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-medium);
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
@@ -36,38 +36,26 @@
       }
 
       .settings-menu button {
-        margin: 0;
         width: 100%;
       }
 
       /* Sleep control section */
       .sleep-control {
         text-align: center;
-        margin: 2rem 0;
       }
 
       #sleep-btn.active {
-        background-color: var(--pico-del-color);
-        border-color: var(--pico-del-color);
+        background-color: var(--danger);
+        border-color: var(--danger);
       }
 
       #sleep-btn.active:hover {
-        background-color: color-mix(in srgb, var(--pico-del-color) 85%, black);
+        background-color: color-mix(in srgb, var(--danger) 85%, black);
       }
 
       /* Session list */
-      .session-list {
-        margin-top: 2rem;
-      }
-
       .session-list table {
-        font-size: 0.9rem;
-      }
-
-      .session-list td,
-      .session-list th {
-        padding: 0.5rem;
-        vertical-align: middle;
+        font-size: var(--text-regular);
       }
 
       .duration {
@@ -75,14 +63,13 @@
       }
 
       .in-progress {
-        color: var(--pico-primary);
+        color: var(--primary);
         font-style: italic;
       }
 
       /* Load more button */
       #load-more-btn {
         width: 100%;
-        margin-top: 1rem;
       }
 
       #load-more-btn.hidden {
@@ -90,23 +77,20 @@
       }
 
       /* Dialog styling */
-      dialog article {
+      dialog {
         min-width: min(400px, 90vw);
       }
 
       dialog label {
         display: block;
-        margin-bottom: 1rem;
       }
 
       dialog input[type="datetime-local"] {
         width: 100%;
-        margin-top: 0.25rem;
       }
 
       dialog footer button {
         width: auto;
-        margin: 0;
       }
 
       /* Mobile responsiveness */
@@ -122,18 +106,13 @@
         .session-list table {
           font-size: 0.8rem;
         }
-
-        .session-list td,
-        .session-list th {
-          padding: 0.4rem;
-        }
       }
     </style>
   </head>
   <body>
     <main class="container">
       <!-- Header with title and settings -->
-      <div class="header-row mb-md">
+      <div class="header-row mb-2">
         <h1>SleepTimer</h1>
         <div class="settings-container">
           <button id="settings-btn" class="outline">Settings</button>
@@ -172,20 +151,25 @@
 
     <!-- Import confirmation dialog -->
     <dialog id="import-dialog">
-      <article>
+      <header>
         <h3>Confirm Import</h3>
+      </header>
+      <section>
         <p>This will overwrite all existing data. Are you sure you want to continue?</p>
-        <footer class="flex gap-md justify-end">
-          <button id="import-cancel" class="secondary">Cancel</button>
-          <button id="import-confirm">Import</button>
-        </footer>
-      </article>
+      </section>
+      <footer class="flex gap-md justify-end">
+
+        <button id="import-cancel" data-variant="secondary">Cancel</button>
+        <button id="import-confirm">Import</button>
+      </footer>
     </dialog>
 
     <!-- Edit session dialog -->
     <dialog id="edit-dialog">
-      <article>
+      <header>
         <h3>Edit Session</h3>
+      </header>
+      <section>
         <label>
           Start
           <input type="datetime-local" id="edit-start" />
@@ -194,15 +178,15 @@
           End
           <input type="datetime-local" id="edit-end" />
         </label>
-        <p id="edit-error" style="color: var(--pico-del-color); display: none;"></p>
-        <footer class="flex gap-md justify-between">
-          <button id="edit-delete" class="secondary outline">Delete</button>
-          <div class="flex gap-md">
-            <button id="edit-cancel" class="secondary">Cancel</button>
-            <button id="edit-save">Save</button>
-          </div>
-        </footer>
-      </article>
+        <p id="edit-error" style="color: var(--danger); display: none;"></p>
+      </section>
+      <footer class="flex gap-md justify-between">
+        <button id="edit-delete" class="outline" data-variant="secondary">Delete</button>
+        <div class="flex gap-md">
+          <button id="edit-cancel" data-variant="secondary">Cancel</button>
+          <button id="edit-save">Save</button>
+        </div>
+      </footer>
     </dialog>
 
     <script>
