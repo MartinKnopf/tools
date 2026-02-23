@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#6EABAB" />
+    <title>Snake Puzzle</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="apple-touch-icon" href="../favicon.svg" />
+    <style>
+      /* ── reset & base ─────────────────────────────────────── */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        background: #6EABAB;
+      }
+
+      canvas { display: block; }
+
+      /* ── overlay screens ──────────────────────────────────── */
+      .screen {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 10;
+        transition: opacity 0.25s ease;
+      }
+      .screen.hidden { opacity: 0; pointer-events: none; }
+
+      /* ── card panel ───────────────────────────────────────── */
+      .card {
+        background: rgba(255, 255, 255, 0.96);
+        border-radius: 28px;
+        padding: 36px 32px;
+        max-width: 370px;
+        width: 88%;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+      }
+      .card h1 {
+        font-size: 30px; font-weight: 800;
+        margin-bottom: 28px; text-align: center;
+      }
+      .card h2 {
+        font-size: 21px; font-weight: 700;
+        margin-bottom: 18px; text-align: center;
+      }
+
+      /* ── buttons ──────────────────────────────────────────── */
+      .btn {
+        display: block; width: 100%;
+        padding: 15px 24px;
+        border: none; border-radius: 16px;
+        font-size: 17px; font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.1s ease, opacity 0.1s ease;
+        color: #fff;
+        margin-bottom: 10px;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .btn:last-child { margin-bottom: 0; }
+      .btn:active { transform: scale(0.97); opacity: 0.85; }
+      .btn-primary { background: linear-gradient(135deg, #4D96FF, #6BBBFF); }
+      .btn-secondary { background: rgba(0, 0, 0, 0.06); color: #444; }
+
+      /* ── level selector ───────────────────────────────────── */
+      .level-selector {
+        display: flex; align-items: center; justify-content: center;
+        gap: 24px; margin-bottom: 28px;
+      }
+      .level-selector .num {
+        font-size: 56px; font-weight: 800;
+        min-width: 80px; text-align: center;
+        color: #333;
+      }
+      .level-selector button {
+        width: 48px; height: 48px; border-radius: 50%;
+        border: none; background: rgba(0, 0, 0, 0.06);
+        font-size: 26px; font-weight: 700; color: #555;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .level-selector button:active { background: rgba(0, 0, 0, 0.12); }
+
+      /* ── HUD (in-game) ────────────────────────────────────── */
+      .hud {
+        position: fixed; top: 0; left: 0; right: 0;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 18px;
+        padding-top: max(14px, env(safe-area-inset-top));
+        z-index: 5;
+      }
+      .hud-btn {
+        width: 44px; height: 44px; border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.25);
+        color: #fff; font-size: 22px;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        -webkit-tap-highlight-color: transparent;
+        transition: background 0.15s ease;
+      }
+      .hud-btn:active { background: rgba(255, 255, 255, 0.4); }
+      .hud-info {
+        color: #fff; font-weight: 700; font-size: 15px;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 18px; border-radius: 22px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        letter-spacing: 0.3px;
+      }
+
+      .bottom-bar {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        display: flex; justify-content: center; gap: 14px;
+        padding: 16px 20px;
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+        z-index: 5;
+      }
+
+      /* ── modal overlays (win / game-over) ─────────────────── */
+      .modal-overlay {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+      .modal-overlay.hidden { display: none; }
+      .modal-overlay .card { text-align: center; }
+      .modal-overlay .emoji { font-size: 48px; margin-bottom: 12px; }
+      .modal-overlay .title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+      .modal-overlay .subtitle { color: #888; margin-bottom: 24px; font-size: 15px; }
+
+      /* ── generator form ───────────────────────────────────── */
+      .form-group { margin-bottom: 18px; }
+      .form-group label {
+        display: block; font-size: 13px; font-weight: 700;
+        color: #888; margin-bottom: 6px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+      }
+      .form-group input,
+      .form-group select {
+        width: 100%; padding: 11px 14px;
+        border: 2px solid rgba(0, 0, 0, 0.07);
+        border-radius: 12px;
+        font-size: 16px; font-family: inherit;
+        background: #fff;
+        transition: border-color 0.15s ease;
+      }
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none; border-color: #4D96FF;
+      }
+      .form-group input[type="range"] {
+        -webkit-appearance: none; appearance: none;
+        height: 6px; border-radius: 3px;
+        background: rgba(0, 0, 0, 0.08);
+        padding: 0; border: none;
+      }
+      .form-group input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none; appearance: none;
+        width: 22px; height: 22px; border-radius: 50%;
+        background: #4D96FF; cursor: pointer;
+      }
+
+      .toggle-group { display: flex; flex-wrap: wrap; gap: 8px; }
+      .toggle {
+        padding: 8px 16px; border-radius: 22px;
+        border: 2px solid rgba(0, 0, 0, 0.07);
+        background: #fff; font-size: 14px; font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .toggle.active {
+        background: #4D96FF; color: #fff;
+        border-color: #4D96FF;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Full-screen game canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD (visible during gameplay) -->
+    <div class="hud" id="hud" style="display: none">
+      <button class="hud-btn" id="btnBack" title="Menu">✕</button>
+      <div class="hud-info" id="hudInfo">Level 1 · 0 moves</div>
+      <button class="hud-btn" id="btnUndo" title="Undo">↩</button>
+    </div>
+    <div class="bottom-bar" id="bottomBar" style="display: none">
+      <button class="hud-btn" id="btnRestart" title="Restart">⟳</button>
+    </div>
+
+    <!-- Menu screen -->
+    <div class="screen" id="menuScreen">
+      <div class="card">
+        <h1>🐍 Snake Puzzle</h1>
+        <div class="level-selector">
+          <button id="btnPrevLevel">‹</button>
+          <div class="num" id="levelNum">1</div>
+          <button id="btnNextLevel">›</button>
+        </div>
+        <button class="btn btn-primary" id="btnPlay">Play</button>
+        <button class="btn btn-secondary" id="btnGenerator">Level Generator</button>
+      </div>
+    </div>
+
+    <!-- Generator screen -->
+    <div class="screen hidden" id="generatorScreen">
+      <div class="card">
+        <h2>⚙️ Level Generator</h2>
+        <div class="form-group">
+          <label>Seed</label>
+          <input type="text" id="genSeed" value="hello" placeholder="Any text or number" />
+        </div>
+        <div class="form-group">
+          <label>Grid Size</label>
+          <select id="genGridSize">
+            <option value="5">5 × 5</option>
+            <option value="6" selected>6 × 6</option>
+            <option value="7">7 × 7</option>
+            <option value="8">8 × 8</option>
+            <option value="9">9 × 9</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Difficulty</label>
+          <input type="range" id="genDifficulty" min="1" max="10" value="3" />
+        </div>
+        <div class="form-group">
+          <label>Mechanics</label>
+          <div class="toggle-group">
+            <button class="toggle active" data-mechanic="apples">🍎 Apples</button>
+            <button class="toggle" data-mechanic="crates">📦 Crates</button>
+            <button class="toggle" data-mechanic="ice">🧊 Ice</button>
+            <button class="toggle" data-mechanic="portals">🌀 Portals</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btnGenPlay">Generate &amp; Play</button>
+        <button class="btn btn-secondary" id="btnGenBack">Back</button>
+      </div>
+    </div>
+
+    <!-- Win overlay -->
+    <div class="modal-overlay hidden" id="winOverlay">
+      <div class="card">
+        <div class="emoji">🎉</div>
+        <div class="title" id="winTitle">Level Complete!</div>
+        <div class="subtitle" id="winMoves">Solved in 0 moves</div>
+        <button class="btn btn-primary" id="btnNextLevel2">Next Level</button>
+        <button class="btn btn-secondary" id="btnWinMenu">Menu</button>
+      </div>
+    </div>
+
+    <!-- Game over overlay -->
+    <div class="modal-overlay hidden" id="gameOverOverlay">
+      <div class="card">
+        <div class="emoji">💀</div>
+        <div class="title">Oops!</div>
+        <div class="subtitle">The snake bit itself</div>
+        <button class="btn btn-primary" id="btnRetry">Try Again</button>
+        <button class="btn btn-secondary" id="btnGOMenu">Menu</button>
+      </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

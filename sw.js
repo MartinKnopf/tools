@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v19';
+const CACHE_NAME = 'static-tools-v20';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -43,6 +43,14 @@ const PRECACHE_URLS = [
   '/tools/montag/tasks/spam-delete.js',
   '/tools/montag/tasks/defrag.js',
   '/tools/montag/tasks/data-pipeline.js',
+
+  '/tools/snake/index.html',
+  '/tools/snake/js/main.js',
+  '/tools/snake/js/game.js',
+  '/tools/snake/js/levels.js',
+  '/tools/snake/js/renderer.js',
+  '/tools/snake/js/input.js',
+  '/tools/snake/js/random.js',
 ];
 
 // Install event - cache core assets
