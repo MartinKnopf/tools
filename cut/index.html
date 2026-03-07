@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#574747" />
+    <title>Cut</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="apple-touch-icon" href="../icons/icon-192.png" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@knadh/oat/oat.min.css"
+    />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      /* Video element fills container width */
+      #video {
+        width: 100%;
+        display: block;
+      }
+
+      /* Timeline visualization */
+      .timeline-wrap {
+        position: relative;
+        height: 48px;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+      }
+
+      .timeline-bar {
+        position: absolute;
+        top: 8px;
+        left: 0;
+        right: 0;
+        height: 32px;
+        display: flex;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      /* Segment blocks inside the timeline bar */
+      .timeline-segment {
+        height: 100%;
+        position: relative;
+        transition: opacity 0.1s;
+      }
+
+      .timeline-segment:hover {
+        opacity: 0.8;
+      }
+
+      .timeline-segment[data-mode="normal"] {
+        background: var(--muted);
+      }
+
+      .timeline-segment[data-mode="remove"] {
+        background: var(--danger);
+        opacity: 0.5;
+      }
+
+      .timeline-segment[data-mode="slow"] {
+        background: var(--info);
+      }
+
+      .timeline-segment[data-mode="fast"] {
+        background: var(--warning);
+      }
+
+      /* Marker lines on the timeline */
+      .timeline-marker {
+        position: absolute;
+        top: 4px;
+        width: 3px;
+        height: 40px;
+        background: var(--foreground);
+        transform: translateX(-1px);
+        z-index: 2;
+        cursor: grab;
+      }
+
+      .timeline-marker:active {
+        cursor: grabbing;
+      }
+
+      .timeline-marker.edge {
+        cursor: default;
+        opacity: 0.3;
+      }
+
+      /* Playhead on the timeline */
+      .timeline-playhead {
+        position: absolute;
+        top: 0;
+        width: 2px;
+        height: 48px;
+        background: var(--primary);
+        z-index: 3;
+        pointer-events: none;
+        transform: translateX(-1px);
+      }
+
+      /* Frame controls row */
+      .frame-controls {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+      }
+
+      .frame-controls button {
+        width: auto;
+      }
+
+      .time-display {
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: var(--muted-foreground);
+        min-width: 120px;
+      }
+
+      /* Segment list */
+      .segment-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+      }
+
+      .segment-item select {
+        width: auto;
+        margin: 0;
+      }
+
+      .segment-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+
+      .segment-time {
+        font-family: monospace;
+        font-size: 0.85rem;
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* Preview controls */
+      .preview-controls {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+      }
+
+      .preview-controls button {
+        width: auto;
+      }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <main class="container">
+      <!-- Header -->
+      <div class="header-row mb-2">
+        <h1>Cut</h1>
+        <label class="button" for="file-input" style="cursor: pointer; margin: 0">
+          Load Video
+          <input type="file" id="file-input" accept="video/*" hidden />
+        </label>
+      </div>
+
+      <!-- Empty state -->
+      <p class="empty-state" id="empty-state">
+        Load a video to start cutting.
+      </p>
+
+      <!-- Video and controls (hidden until video loaded) -->
+      <div id="editor" class="hidden">
+        <!-- Video player -->
+        <section>
+          <video id="video" playsinline></video>
+        </section>
+
+        <!-- Timeline -->
+        <section>
+          <div class="timeline-wrap" id="timeline">
+            <div class="timeline-bar" id="timeline-bar"></div>
+            <div class="timeline-playhead" id="playhead"></div>
+          </div>
+        </section>
+
+        <!-- Frame navigation and marker controls -->
+        <section>
+          <div class="frame-controls">
+            <span class="time-display" id="time-display">0:00.000 / 0:00</span>
+            <button id="prev-frame-btn" title="Previous frame">&larr; Frame</button>
+            <button id="next-frame-btn" title="Next frame">Frame &rarr;</button>
+            <button id="add-marker-btn">Add Marker</button>
+            <button id="remove-marker-btn" data-variant="danger">Remove Nearest Marker</button>
+          </div>
+        </section>
+
+        <!-- Segments list -->
+        <section>
+          <h3>Segments</h3>
+          <div class="flex flex-col gap-sm" id="segment-list"></div>
+        </section>
+
+        <!-- Preview controls -->
+        <section>
+          <div class="preview-controls">
+            <button id="preview-btn">Preview</button>
+            <button id="stop-preview-btn" data-variant="secondary" class="hidden">Stop</button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      /* ========================================
+         State
+      ======================================== */
+      const FRAME_STEP = 1 / 30; // assume 30fps for frame stepping
+
+      let videoUrl = null;    // object URL for the loaded video
+      let duration = 0;       // video duration in seconds
+      let markers = [];       // sorted array of marker times (excludes 0 and duration)
+      let segments = [];      // derived: [{start, end, mode}]
+      let previewing = false; // preview playback active
+      let previewRafId = null;
+
+      /* ========================================
+         DOM References
+      ======================================== */
+      const fileInput = document.getElementById("file-input");
+      const emptyState = document.getElementById("empty-state");
+      const editorEl = document.getElementById("editor");
+      const video = document.getElementById("video");
+      const timelineEl = document.getElementById("timeline");
+      const timelineBar = document.getElementById("timeline-bar");
+      const playheadEl = document.getElementById("playhead");
+      const timeDisplay = document.getElementById("time-display");
+      const segmentListEl = document.getElementById("segment-list");
+      const prevFrameBtn = document.getElementById("prev-frame-btn");
+      const nextFrameBtn = document.getElementById("next-frame-btn");
+      const addMarkerBtn = document.getElementById("add-marker-btn");
+      const removeMarkerBtn = document.getElementById("remove-marker-btn");
+      const previewBtn = document.getElementById("preview-btn");
+      const stopPreviewBtn = document.getElementById("stop-preview-btn");
+
+      /* ========================================
+         Utilities
+      ======================================== */
+
+      // Format seconds as M:SS.mmm
+      function formatTime(s) {
+        if (!isFinite(s) || s < 0) s = 0;
+        var mins = Math.floor(s / 60);
+        var secs = s % 60;
+        return mins + ":" + secs.toFixed(3).padStart(6, "0");
+      }
+
+      // Format seconds as M:SS (no millis)
+      function formatTimeShort(s) {
+        if (!isFinite(s) || s < 0) s = 0;
+        var mins = Math.floor(s / 60);
+        var secs = Math.floor(s % 60);
+        return mins + ":" + String(secs).padStart(2, "0");
+      }
+
+      // Rebuild segments array from markers
+      function rebuildSegments() {
+        var points = [0].concat(markers).concat([duration]);
+        segments = [];
+        for (var i = 0; i < points.length - 1; i++) {
+          // Preserve existing mode if the segment boundaries match
+          var existing = findExistingSegment(points[i], points[i + 1]);
+          segments.push({
+            start: points[i],
+            end: points[i + 1],
+            mode: existing ? existing.mode : "normal",
+          });
+        }
+      }
+
+      // Find a previously existing segment that covers the same range
+      var prevSegments = [];
+      function findExistingSegment(start, end) {
+        for (var i = 0; i < prevSegments.length; i++) {
+          if (
+            Math.abs(prevSegments[i].start - start) < 0.001 &&
+            Math.abs(prevSegments[i].end - end) < 0.001
+          ) {
+            return prevSegments[i];
+          }
+        }
+        // If no exact match, find a segment that contained this range
+        for (var i = 0; i < prevSegments.length; i++) {
+          if (prevSegments[i].start <= start + 0.001 && prevSegments[i].end >= end - 0.001) {
+            return prevSegments[i];
+          }
+        }
+        return null;
+      }
+
+      // Save previous segments and rebuild
+      function updateSegments() {
+        prevSegments = segments.slice();
+        rebuildSegments();
+      }
+
+      /* ========================================
+         Video Loading
+      ======================================== */
+
+      fileInput.addEventListener("change", function (e) {
+        var file = e.target.files[0];
+        if (!file) return;
+
+        // Clean up previous object URL
+        if (videoUrl) URL.revokeObjectURL(videoUrl);
+
+        // Reset state
+        markers = [];
+        segments = [];
+        prevSegments = [];
+        stopPreview();
+
+        videoUrl = URL.createObjectURL(file);
+        video.src = videoUrl;
+
+        video.addEventListener(
+          "loadedmetadata",
+          function () {
+            duration = video.duration;
+            video.currentTime = 0;
+            updateSegments();
+            render();
+            emptyState.classList.add("hidden");
+            editorEl.classList.remove("hidden");
+          },
+          { once: true }
+        );
+      });
+
+      /* ========================================
+         Time Display and Playhead Updates
+      ======================================== */
+
+      // Update time display and playhead position
+      function updatePlayhead() {
+        if (!duration) return;
+        var t = video.currentTime;
+        var pct = (t / duration) * 100;
+        playheadEl.style.left = pct + "%";
+        timeDisplay.textContent =
+          formatTime(t) + " / " + formatTimeShort(duration);
+      }
+
+      video.addEventListener("timeupdate", function () {
+        if (!previewing) updatePlayhead();
+      });
+
+      video.addEventListener("seeked", updatePlayhead);
+
+      /* ========================================
+         Timeline Interaction (seek by click/drag)
+      ======================================== */
+
+      // Seek video to a position based on pointer X on the timeline
+      function seekToPointer(clientX) {
+        var rect = timelineEl.getBoundingClientRect();
+        var pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        video.currentTime = pct * duration;
+        updatePlayhead();
+      }
+
+      var isSeeking = false;
+
+      timelineEl.addEventListener("pointerdown", function (e) {
+        // Ignore if clicking a marker (markers handle their own drag)
+        if (e.target.classList.contains("timeline-marker")) return;
+        isSeeking = true;
+        seekToPointer(e.clientX);
+        timelineEl.setPointerCapture(e.pointerId);
+      });
+
+      timelineEl.addEventListener("pointermove", function (e) {
+        if (isSeeking) seekToPointer(e.clientX);
+      });
+
+      timelineEl.addEventListener("pointerup", function () {
+        isSeeking = false;
+      });
+
+      /* ========================================
+         Marker Dragging
+      ======================================== */
+
+      function setupMarkerDrag(markerEl, markerIndex) {
+        var dragging = false;
+
+        markerEl.addEventListener("pointerdown", function (e) {
+          e.stopPropagation();
+          dragging = true;
+          markerEl.setPointerCapture(e.pointerId);
+        });
+
+        markerEl.addEventListener("pointermove", function (e) {
+          if (!dragging) return;
+          var rect = timelineEl.getBoundingClientRect();
+          var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+          var newTime = pct * duration;
+
+          // Clamp to neighboring markers (or 0/duration)
+          var points = [0].concat(markers).concat([duration]);
+          // markerIndex refers to index in markers array, in points it's markerIndex+1
+          var pointIdx = markerIndex + 1;
+          var minTime = points[pointIdx - 1] + FRAME_STEP;
+          var maxTime = points[pointIdx + 1] - FRAME_STEP;
+          newTime = Math.max(minTime, Math.min(maxTime, newTime));
+
+          markers[markerIndex] = newTime;
+          updateSegments();
+          render();
+
+          // Also seek video to the marker position
+          video.currentTime = newTime;
+          updatePlayhead();
+        });
+
+        markerEl.addEventListener("pointerup", function () {
+          dragging = false;
+        });
+      }
+
+      /* ========================================
+         Frame Navigation
+      ======================================== */
+
+      prevFrameBtn.addEventListener("click", function () {
+        video.currentTime = Math.max(0, video.currentTime - FRAME_STEP);
+      });
+
+      nextFrameBtn.addEventListener("click", function () {
+        video.currentTime = Math.min(duration, video.currentTime + FRAME_STEP);
+      });
+
+      /* ========================================
+         Marker Add/Remove
+      ======================================== */
+
+      addMarkerBtn.addEventListener("click", function () {
+        var t = video.currentTime;
+
+        // Don't add markers at start or end
+        if (t < FRAME_STEP || t > duration - FRAME_STEP) return;
+
+        // Don't add duplicate markers (within half a frame)
+        for (var i = 0; i < markers.length; i++) {
+          if (Math.abs(markers[i] - t) < FRAME_STEP / 2) return;
+        }
+
+        markers.push(t);
+        markers.sort(function (a, b) { return a - b; });
+        updateSegments();
+        render();
+      });
+
+      removeMarkerBtn.addEventListener("click", function () {
+        if (markers.length === 0) return;
+        var t = video.currentTime;
+
+        // Find nearest marker
+        var nearest = 0;
+        var minDist = Math.abs(markers[0] - t);
+        for (var i = 1; i < markers.length; i++) {
+          var dist = Math.abs(markers[i] - t);
+          if (dist < minDist) {
+            minDist = dist;
+            nearest = i;
+          }
+        }
+
+        markers.splice(nearest, 1);
+        updateSegments();
+        render();
+      });
+
+      /* ========================================
+         Preview Playback
+      ======================================== */
+
+      previewBtn.addEventListener("click", startPreview);
+      stopPreviewBtn.addEventListener("click", stopPreview);
+
+      function startPreview() {
+        if (segments.length === 0) return;
+        previewing = true;
+        previewBtn.classList.add("hidden");
+        stopPreviewBtn.classList.remove("hidden");
+
+        // Find the first non-removed segment
+        var startIdx = 0;
+        while (startIdx < segments.length && segments[startIdx].mode === "remove") {
+          startIdx++;
+        }
+        if (startIdx >= segments.length) {
+          stopPreview();
+          return;
+        }
+
+        playSegment(startIdx);
+      }
+
+      function playSegment(idx) {
+        if (!previewing || idx >= segments.length) {
+          stopPreview();
+          return;
+        }
+
+        var seg = segments[idx];
+
+        // Skip removed segments
+        if (seg.mode === "remove") {
+          playSegment(idx + 1);
+          return;
+        }
+
+        // Set playback rate
+        var rate = 1;
+        if (seg.mode === "slow") rate = 0.5;
+        if (seg.mode === "fast") rate = 2;
+        video.playbackRate = rate;
+
+        // Seek to segment start and play
+        video.currentTime = seg.start;
+        video.play();
+
+        // Monitor playback to stop at segment end
+        function checkEnd() {
+          if (!previewing) return;
+          updatePlayhead();
+          if (video.currentTime >= seg.end - 0.01) {
+            video.pause();
+            playSegment(idx + 1);
+            return;
+          }
+          previewRafId = requestAnimationFrame(checkEnd);
+        }
+
+        previewRafId = requestAnimationFrame(checkEnd);
+      }
+
+      function stopPreview() {
+        previewing = false;
+        video.pause();
+        video.playbackRate = 1;
+        if (previewRafId) {
+          cancelAnimationFrame(previewRafId);
+          previewRafId = null;
+        }
+        previewBtn.classList.remove("hidden");
+        stopPreviewBtn.classList.add("hidden");
+      }
+
+      /* ========================================
+         Rendering
+      ======================================== */
+
+      // Mode labels and colors for the segment list
+      var modeLabels = {
+        normal: "Keep",
+        remove: "Remove",
+        slow: "0.5x Speed",
+        fast: "2x Speed",
+      };
+
+      var modeColors = {
+        normal: "var(--muted)",
+        remove: "var(--danger)",
+        slow: "var(--info)",
+        fast: "var(--warning)",
+      };
+
+      function render() {
+        renderTimeline();
+        renderSegmentList();
+      }
+
+      // Render the visual timeline with segment blocks and markers
+      function renderTimeline() {
+        timelineBar.innerHTML = "";
+
+        // Render segment blocks
+        segments.forEach(function (seg) {
+          var pct = ((seg.end - seg.start) / duration) * 100;
+          var div = document.createElement("div");
+          div.className = "timeline-segment";
+          div.dataset.mode = seg.mode;
+          div.style.width = pct + "%";
+          timelineBar.appendChild(div);
+        });
+
+        // Remove old markers from timeline (not bar)
+        timelineEl.querySelectorAll(".timeline-marker").forEach(function (el) {
+          el.remove();
+        });
+
+        // Render marker handles
+        markers.forEach(function (time, idx) {
+          var pct = (time / duration) * 100;
+          var markerEl = document.createElement("div");
+          markerEl.className = "timeline-marker";
+          markerEl.style.left = pct + "%";
+          timelineEl.appendChild(markerEl);
+          setupMarkerDrag(markerEl, idx);
+        });
+
+        updatePlayhead();
+      }
+
+      // Render the segment list below the timeline
+      function renderSegmentList() {
+        segmentListEl.innerHTML = "";
+
+        if (segments.length === 0) return;
+
+        segments.forEach(function (seg, idx) {
+          var item = document.createElement("article");
+          item.className = "segment-item";
+
+          // Color indicator
+          var color = document.createElement("span");
+          color.className = "segment-color";
+          color.style.background = modeColors[seg.mode];
+
+          // Time range label
+          var timeLabel = document.createElement("span");
+          timeLabel.className = "segment-time";
+          timeLabel.textContent =
+            formatTimeShort(seg.start) + " – " + formatTimeShort(seg.end);
+
+          // Mode selector
+          var select = document.createElement("select");
+          ["normal", "remove", "slow", "fast"].forEach(function (mode) {
+            var opt = document.createElement("option");
+            opt.value = mode;
+            opt.textContent = modeLabels[mode];
+            if (mode === seg.mode) opt.selected = true;
+            select.appendChild(opt);
+          });
+
+          select.addEventListener("change", function () {
+            segments[idx].mode = select.value;
+            renderTimeline();
+            renderSegmentList();
+          });
+
+          // Jump-to button
+          var jumpBtn = document.createElement("button");
+          jumpBtn.textContent = "Go";
+          jumpBtn.title = "Jump to segment start";
+          jumpBtn.style.width = "auto";
+          jumpBtn.dataset.variant = "secondary";
+          jumpBtn.addEventListener("click", function () {
+            video.currentTime = seg.start;
+            updatePlayhead();
+          });
+
+          item.appendChild(color);
+          item.appendChild(timeLabel);
+          item.appendChild(select);
+          item.appendChild(jumpBtn);
+          segmentListEl.appendChild(item);
+        });
+      }
+
+      /* ========================================
+         Keyboard Shortcuts
+      ======================================== */
+
+      document.addEventListener("keydown", function (e) {
+        // Ignore when typing in inputs
+        if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+        if (!duration) return;
+
+        switch (e.key) {
+          case "ArrowLeft":
+            e.preventDefault();
+            video.currentTime = Math.max(0, video.currentTime - FRAME_STEP);
+            break;
+          case "ArrowRight":
+            e.preventDefault();
+            video.currentTime = Math.min(duration, video.currentTime + FRAME_STEP);
+            break;
+          case "m":
+            addMarkerBtn.click();
+            break;
+          case " ":
+            e.preventDefault();
+            if (video.paused) {
+              video.play();
+            } else {
+              video.pause();
+            }
+            break;
+        }
+      });
+    </script>
+  </body>
+</html>
