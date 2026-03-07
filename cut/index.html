@@ -210,11 +210,13 @@
           <div class="flex flex-col gap-sm" id="segment-list"></div>
         </section>
 
-        <!-- Preview controls -->
+        <!-- Preview and download controls -->
         <section>
           <div class="preview-controls">
             <button id="preview-btn">Preview</button>
             <button id="stop-preview-btn" data-variant="secondary" class="hidden">Stop</button>
+            <button id="download-btn">Download</button>
+            <span id="download-status" class="time-display hidden"></span>
           </div>
         </section>
       </div>
@@ -232,6 +234,9 @@
       let segments = [];      // derived: [{start, end, mode}]
       let previewing = false; // preview playback active
       let previewRafId = null;
+      let recording = false; // recording for download
+      let mediaRecorder = null;
+      let recordedChunks = [];
 
       /* ========================================
          DOM References
@@ -251,6 +256,8 @@
       const removeMarkerBtn = document.getElementById("remove-marker-btn");
       const previewBtn = document.getElementById("preview-btn");
       const stopPreviewBtn = document.getElementById("stop-preview-btn");
+      const downloadBtn = document.getElementById("download-btn");
+      const downloadStatus = document.getElementById("download-status");
 
       /* ========================================
          Utilities
@@ -566,6 +573,133 @@
         }
         previewBtn.classList.remove("hidden");
         stopPreviewBtn.classList.add("hidden");
+
+        // If recording, stop the recorder (triggers download via its stop event)
+        if (recording && mediaRecorder && mediaRecorder.state !== "inactive") {
+          mediaRecorder.stop();
+        }
+      }
+
+      /* ========================================
+         Download (record preview via captureStream)
+      ======================================== */
+
+      downloadBtn.addEventListener("click", startDownload);
+
+      function startDownload() {
+        if (segments.length === 0 || recording) return;
+
+        // Capture the video element's media stream
+        var stream = video.captureStream();
+        if (!stream) {
+          alert("Your browser does not support captureStream().");
+          return;
+        }
+
+        // Pick a supported mime type
+        var mimeType = "video/webm;codecs=vp9,opus";
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = "video/webm;codecs=vp8,opus";
+        }
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = "video/webm";
+        }
+
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+
+        mediaRecorder.addEventListener("dataavailable", function (e) {
+          if (e.data.size > 0) recordedChunks.push(e.data);
+        });
+
+        mediaRecorder.addEventListener("stop", function () {
+          // Build blob and trigger download
+          var blob = new Blob(recordedChunks, { type: mimeType });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url;
+          a.download = "cut-video.webm";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          recording = false;
+          downloadStatus.classList.add("hidden");
+          downloadBtn.disabled = false;
+        });
+
+        // Start recording, then run preview
+        recording = true;
+        downloadBtn.disabled = true;
+        downloadStatus.textContent = "Recording…";
+        downloadStatus.classList.remove("hidden");
+        mediaRecorder.start();
+        startPreviewForDownload();
+      }
+
+      // Same as preview but stops recorder when done
+      function startPreviewForDownload() {
+        previewing = true;
+        previewBtn.classList.add("hidden");
+        stopPreviewBtn.classList.remove("hidden");
+
+        var startIdx = 0;
+        while (startIdx < segments.length && segments[startIdx].mode === "remove") {
+          startIdx++;
+        }
+        if (startIdx >= segments.length) {
+          finishDownload();
+          return;
+        }
+
+        playSegmentForDownload(startIdx);
+      }
+
+      function playSegmentForDownload(idx) {
+        if (!previewing || idx >= segments.length) {
+          finishDownload();
+          return;
+        }
+
+        var seg = segments[idx];
+
+        if (seg.mode === "remove") {
+          playSegmentForDownload(idx + 1);
+          return;
+        }
+
+        // Set playback rate (recorded at real-time speed the video plays)
+        var rate = 1;
+        if (seg.mode === "slow") rate = 0.5;
+        if (seg.mode === "fast") rate = 2;
+        video.playbackRate = rate;
+
+        video.currentTime = seg.start;
+        video.play();
+
+        function checkEnd() {
+          if (!previewing) {
+            finishDownload();
+            return;
+          }
+          updatePlayhead();
+          if (video.currentTime >= seg.end - 0.01) {
+            video.pause();
+            playSegmentForDownload(idx + 1);
+            return;
+          }
+          previewRafId = requestAnimationFrame(checkEnd);
+        }
+
+        previewRafId = requestAnimationFrame(checkEnd);
+      }
+
+      function finishDownload() {
+        stopPreview();
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+          mediaRecorder.stop();
+        }
       }
 
       /* ========================================
