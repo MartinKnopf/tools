@@ -219,10 +219,28 @@
             <span id="download-status" class="time-display hidden"></span>
           </div>
         </section>
+
+        <!-- Debug log -->
+        <section>
+          <details open>
+            <summary>Log</summary>
+            <pre id="debug-log" style="max-height: 200px; overflow-y: auto; font-size: 0.8rem;"></pre>
+          </details>
+        </section>
       </div>
     </main>
 
     <script>
+      /* ========================================
+         Debug Logger
+      ======================================== */
+      const debugLogEl = document.getElementById("debug-log");
+      function log(msg) {
+        var line = new Date().toISOString().slice(11, 23) + " " + msg;
+        debugLogEl.textContent += line + "\n";
+        debugLogEl.scrollTop = debugLogEl.scrollHeight;
+      }
+
       /* ========================================
          State
       ======================================== */
@@ -587,11 +605,24 @@
       downloadBtn.addEventListener("click", startDownload);
 
       function startDownload() {
-        if (segments.length === 0 || recording) return;
+        log("startDownload called, segments=" + segments.length + " recording=" + recording);
+        if (segments.length === 0 || recording) {
+          log("startDownload early return");
+          return;
+        }
 
         // Capture the video element's media stream
-        var stream = video.captureStream();
+        log("calling captureStream...");
+        try {
+          var stream = video.captureStream();
+          log("captureStream result: " + stream);
+          log("stream tracks: " + stream.getTracks().map(function(t) { return t.kind + ":" + t.readyState; }).join(", "));
+        } catch (err) {
+          log("captureStream error: " + err.message);
+          return;
+        }
         if (!stream) {
+          log("stream is falsy");
           alert("Your browser does not support captureStream().");
           return;
         }
@@ -599,22 +630,38 @@
         // Pick a supported mime type
         var mimeType = "video/webm;codecs=vp9,opus";
         if (!MediaRecorder.isTypeSupported(mimeType)) {
+          log("not supported: " + mimeType);
           mimeType = "video/webm;codecs=vp8,opus";
         }
         if (!MediaRecorder.isTypeSupported(mimeType)) {
+          log("not supported: " + mimeType);
           mimeType = "video/webm";
         }
+        log("using mimeType: " + mimeType);
 
         recordedChunks = [];
-        mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+        try {
+          mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+          log("MediaRecorder created, state=" + mediaRecorder.state);
+        } catch (err) {
+          log("MediaRecorder creation error: " + err.message);
+          return;
+        }
 
         mediaRecorder.addEventListener("dataavailable", function (e) {
+          log("dataavailable: size=" + e.data.size);
           if (e.data.size > 0) recordedChunks.push(e.data);
         });
 
+        mediaRecorder.addEventListener("error", function (e) {
+          log("MediaRecorder error: " + (e.error ? e.error.message : e));
+        });
+
         mediaRecorder.addEventListener("stop", function () {
+          log("MediaRecorder stopped, chunks=" + recordedChunks.length);
           // Build blob and trigger download
           var blob = new Blob(recordedChunks, { type: mimeType });
+          log("blob size=" + blob.size);
           var url = URL.createObjectURL(blob);
           var a = document.createElement("a");
           a.href = url;
@@ -634,7 +681,9 @@
         downloadBtn.disabled = true;
         downloadStatus.textContent = "Recording…";
         downloadStatus.classList.remove("hidden");
-        mediaRecorder.start();
+        log("starting MediaRecorder...");
+        mediaRecorder.start(1000); // request data every second
+        log("MediaRecorder started, state=" + mediaRecorder.state);
         startPreviewForDownload();
       }
 
@@ -657,12 +706,15 @@
       }
 
       function playSegmentForDownload(idx) {
+        log("playSegmentForDownload idx=" + idx + " previewing=" + previewing + " total=" + segments.length);
         if (!previewing || idx >= segments.length) {
+          log("playSegmentForDownload -> finishDownload");
           finishDownload();
           return;
         }
 
         var seg = segments[idx];
+        log("segment mode=" + seg.mode + " start=" + seg.start.toFixed(2) + " end=" + seg.end.toFixed(2));
 
         if (seg.mode === "remove") {
           playSegmentForDownload(idx + 1);
@@ -676,6 +728,7 @@
         video.playbackRate = rate;
 
         video.currentTime = seg.start;
+        log("playing segment at rate=" + rate);
         video.play();
 
         function checkEnd() {
@@ -696,8 +749,10 @@
       }
 
       function finishDownload() {
+        log("finishDownload called, recorder state=" + (mediaRecorder ? mediaRecorder.state : "null"));
         stopPreview();
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
+          log("stopping MediaRecorder");
           mediaRecorder.stop();
         }
       }
