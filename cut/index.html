@@ -104,15 +104,19 @@
         transform: translateX(-1px);
       }
 
-      /* Frame controls row */
-      .frame-controls {
+      /* Transport bar: time + frame buttons */
+      .transport-bar {
         display: flex;
         align-items: center;
-        gap: var(--space-2);
-        flex-wrap: wrap;
+        justify-content: space-between;
       }
 
-      .frame-controls button {
+      .transport-bar .btn-group {
+        display: flex;
+        gap: var(--space-1);
+      }
+
+      .transport-bar button {
         width: auto;
       }
 
@@ -120,7 +124,13 @@
         font-family: monospace;
         font-size: 0.9rem;
         color: var(--muted-foreground);
-        min-width: 120px;
+      }
+
+      /* Marker action row */
+      .marker-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-2);
       }
 
       /* Segment list */
@@ -128,7 +138,6 @@
         display: flex;
         align-items: center;
         gap: var(--space-2);
-        flex-wrap: wrap;
       }
 
       .segment-item select {
@@ -150,15 +159,23 @@
         min-width: 0;
       }
 
-      /* Preview controls */
-      .preview-controls {
-        display: flex;
+      /* Action bar: preview + download */
+      .action-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: var(--space-2);
-        flex-wrap: wrap;
       }
 
-      .preview-controls button {
-        width: auto;
+      .action-bar button {
+        width: 100%;
+      }
+
+      /* Download status indicator */
+      #download-status {
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: var(--muted-foreground);
+        text-align: center;
       }
     </style>
   </head>
@@ -191,16 +208,22 @@
             <div class="timeline-bar" id="timeline-bar"></div>
             <div class="timeline-playhead" id="playhead"></div>
           </div>
+
+          <!-- Time display + frame stepping -->
+          <div class="transport-bar">
+            <span class="time-display" id="time-display">0:00.000 / 0:00</span>
+            <div class="btn-group">
+              <button id="prev-frame-btn" title="Previous frame" data-variant="secondary">&larr;</button>
+              <button id="next-frame-btn" title="Next frame" data-variant="secondary">&rarr;</button>
+            </div>
+          </div>
         </section>
 
-        <!-- Frame navigation and marker controls -->
+        <!-- Marker controls -->
         <section>
-          <div class="frame-controls">
-            <span class="time-display" id="time-display">0:00.000 / 0:00</span>
-            <button id="prev-frame-btn" title="Previous frame">&larr; Frame</button>
-            <button id="next-frame-btn" title="Next frame">Frame &rarr;</button>
+          <div class="marker-actions">
             <button id="add-marker-btn">Add Marker</button>
-            <button id="remove-marker-btn" data-variant="danger">Remove Nearest Marker</button>
+            <button id="remove-marker-btn" data-variant="danger">Remove Marker</button>
           </div>
         </section>
 
@@ -210,19 +233,19 @@
           <div class="flex flex-col gap-sm" id="segment-list"></div>
         </section>
 
-        <!-- Preview and download controls -->
+        <!-- Preview and download -->
         <section>
-          <div class="preview-controls">
-            <button id="preview-btn">Preview</button>
+          <div class="action-bar">
+            <button id="preview-btn" data-variant="secondary">Preview</button>
             <button id="stop-preview-btn" data-variant="secondary" class="hidden">Stop</button>
             <button id="download-btn">Download</button>
-            <span id="download-status" class="time-display hidden"></span>
           </div>
+          <div id="download-status" class="hidden"></div>
         </section>
 
         <!-- Debug log -->
         <section>
-          <details open>
+          <details>
             <summary>Log</summary>
             <pre id="debug-log" style="max-height: 200px; overflow-y: auto; font-size: 0.8rem;"></pre>
           </details>
@@ -979,7 +1002,7 @@
           var jumpBtn = document.createElement("button");
           jumpBtn.textContent = "Go";
           jumpBtn.title = "Jump to segment start";
-          jumpBtn.style.width = "auto";
+          jumpBtn.className = "w-auto";
           jumpBtn.dataset.variant = "secondary";
           jumpBtn.addEventListener("click", function () {
             video.currentTime = seg.start;
