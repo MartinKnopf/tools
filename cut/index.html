@@ -247,6 +247,7 @@
       const FRAME_STEP = 1 / 30; // assume 30fps for frame stepping
 
       let videoUrl = null;    // object URL for the loaded video
+      let videoFile = null;   // original File object (needed for FFmpeg)
       let duration = 0;       // video duration in seconds
       let markers = [];       // sorted array of marker times (excludes 0 and duration)
       let segments = [];      // derived: [{start, end, mode}]
@@ -355,6 +356,7 @@
         prevSegments = [];
         stopPreview();
 
+        videoFile = file;
         videoUrl = URL.createObjectURL(file);
         video.src = videoUrl;
 
@@ -591,190 +593,274 @@
         }
         previewBtn.classList.remove("hidden");
         stopPreviewBtn.classList.add("hidden");
-
-        // If recording, stop the recorder (triggers download via its stop event)
-        if (recording && mediaRecorder && mediaRecorder.state !== "inactive") {
-          mediaRecorder.stop();
-        }
       }
 
       /* ========================================
-         Download (record via canvas + captureStream)
+         Download — FFmpeg.wasm (primary) with
+         MediaRecorder canvas fallback
       ======================================== */
 
       downloadBtn.addEventListener("click", startDownload);
+
+      var ffmpegInstance = null;
+      var ffmpegLoaded = false;
+
+      // Load FFmpeg.wasm on first use
+      async function loadFFmpeg() {
+        if (ffmpegLoaded) return true;
+        log("loading FFmpeg.wasm…");
+        downloadStatus.textContent = "Loading FFmpeg…";
+        downloadStatus.classList.remove("hidden");
+
+        try {
+          var FFmpegMod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/+esm");
+          var UtilMod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/+esm");
+
+          ffmpegInstance = new FFmpegMod.FFmpeg();
+          window._ffmpegFetchFile = UtilMod.fetchFile;
+
+          ffmpegInstance.on("log", function (e) { log("ffmpeg: " + e.message); });
+          ffmpegInstance.on("progress", function (e) {
+            var pct = Math.round((e.progress || 0) * 100);
+            downloadStatus.textContent = "Processing… " + pct + "%";
+          });
+
+          await ffmpegInstance.load({
+            coreURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js",
+            wasmURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm",
+          });
+
+          ffmpegLoaded = true;
+          log("FFmpeg loaded");
+          return true;
+        } catch (err) {
+          log("FFmpeg load failed: " + err.message);
+          return false;
+        }
+      }
+
+      // Main download entry point — tries FFmpeg, falls back to MediaRecorder
+      async function startDownload() {
+        if (segments.length === 0 || recording) return;
+        log("startDownload called");
+
+        recording = true;
+        downloadBtn.disabled = true;
+
+        var ok = await loadFFmpeg();
+        if (ok) {
+          await downloadWithFFmpeg();
+        } else {
+          log("falling back to MediaRecorder");
+          downloadWithMediaRecorder();
+        }
+      }
+
+      /* ---------- FFmpeg path ---------- */
+
+      async function downloadWithFFmpeg() {
+        var ff = ffmpegInstance;
+        var fetchFile = window._ffmpegFetchFile;
+
+        try {
+          // Determine input extension from file name
+          var inputName = videoFile.name || "input.mp4";
+          var inputExt = inputName.split(".").pop() || "mp4";
+          var inFile = "input." + inputExt;
+
+          downloadStatus.textContent = "Reading file…";
+          downloadStatus.classList.remove("hidden");
+          log("writing input file: " + inFile + " (" + videoFile.size + " bytes)");
+          await ff.writeFile(inFile, await fetchFile(videoFile));
+
+          // Build one clip per kept segment
+          var kept = segments.filter(function (s) { return s.mode !== "remove"; });
+          if (kept.length === 0) {
+            log("nothing to export — all segments removed");
+            recording = false;
+            downloadBtn.disabled = false;
+            downloadStatus.classList.add("hidden");
+            return;
+          }
+
+          var partFiles = [];
+          for (var i = 0; i < kept.length; i++) {
+            var seg = kept[i];
+            var partName = "part" + i + ".mp4";
+            partFiles.push(partName);
+
+            downloadStatus.textContent = "Segment " + (i + 1) + "/" + kept.length + "…";
+            log("processing segment " + i + ": " + seg.mode + " " + seg.start.toFixed(2) + "→" + seg.end.toFixed(2));
+
+            var args = ["-ss", String(seg.start), "-to", String(seg.end), "-i", inFile];
+
+            if (seg.mode === "normal") {
+              // Stream-copy for normal segments (fast)
+              args.push("-c", "copy");
+            } else {
+              // Re-encode for speed changes
+              var pts = seg.mode === "slow" ? "2.0" : "0.5";
+              var atempo = seg.mode === "slow" ? "0.5" : "2.0";
+              args.push("-filter:v", "setpts=" + pts + "*PTS");
+              args.push("-filter:a", "atempo=" + atempo);
+            }
+
+            args.push("-y", partName);
+            log("ffmpeg " + args.join(" "));
+            await ff.exec(args);
+          }
+
+          // Concatenate parts
+          var outputName = "output.mp4";
+          if (partFiles.length === 1) {
+            outputName = partFiles[0];
+          } else {
+            // Build concat list
+            var concatList = partFiles.map(function (f) { return "file '" + f + "'"; }).join("\n");
+            await ff.writeFile("list.txt", new TextEncoder().encode(concatList));
+            log("concat list:\n" + concatList);
+
+            downloadStatus.textContent = "Joining…";
+            await ff.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "-y", outputName]);
+          }
+
+          // Read output and trigger download
+          downloadStatus.textContent = "Saving…";
+          var data = await ff.readFile(outputName);
+          log("output size: " + data.length + " bytes");
+          var blob = new Blob([data.buffer], { type: "video/mp4" });
+          triggerBlobDownload(blob, "cut-video.mp4");
+
+          // Clean up virtual FS
+          await ff.deleteFile(inFile).catch(function () {});
+          for (var j = 0; j < partFiles.length; j++) {
+            await ff.deleteFile(partFiles[j]).catch(function () {});
+          }
+          await ff.deleteFile("list.txt").catch(function () {});
+          await ff.deleteFile(outputName).catch(function () {});
+        } catch (err) {
+          log("FFmpeg error: " + err.message);
+          alert("Export failed: " + err.message);
+        }
+
+        recording = false;
+        downloadBtn.disabled = false;
+        downloadStatus.classList.add("hidden");
+      }
+
+      // Trigger a file download from a Blob
+      function triggerBlobDownload(blob, filename) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      /* ---------- MediaRecorder fallback ---------- */
 
       // Hidden canvas used to mirror the video for recording
       var recCanvas = document.createElement("canvas");
       var recCtx = recCanvas.getContext("2d");
 
-      function startDownload() {
-        log("startDownload called, segments=" + segments.length + " recording=" + recording);
-        if (segments.length === 0 || recording) {
-          log("startDownload early return");
-          return;
-        }
-
-        // Size canvas to match video dimensions
+      function downloadWithMediaRecorder() {
+        log("MediaRecorder fallback");
         recCanvas.width = video.videoWidth;
         recCanvas.height = video.videoHeight;
         log("canvas size: " + recCanvas.width + "x" + recCanvas.height);
 
-        // Get stream from canvas (video) + video element (audio)
         var canvasStream = recCanvas.captureStream(30);
         log("canvasStream tracks: " + canvasStream.getTracks().map(function(t) { return t.kind + ":" + t.readyState; }).join(", "));
 
-        // Try to grab audio track from the video element
+        // Try to grab audio from the video element
         try {
           var videoStream = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null);
           if (videoStream) {
-            var audioTracks = videoStream.getAudioTracks();
-            log("audio tracks found: " + audioTracks.length);
-            audioTracks.forEach(function(t) { canvasStream.addTrack(t); });
+            videoStream.getAudioTracks().forEach(function(t) { canvasStream.addTrack(t); });
           }
         } catch (err) {
           log("audio capture skipped: " + err.message);
         }
 
         // Pick a supported mime type
-        var mimeTypes = [
-          "video/mp4;codecs=avc1,mp4a.40.2",
-          "video/mp4",
-          "video/webm;codecs=vp9,opus",
-          "video/webm;codecs=vp8,opus",
-          "video/webm",
-        ];
+        var mimeTypes = ["video/mp4;codecs=avc1,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
         var mimeType = "";
         for (var i = 0; i < mimeTypes.length; i++) {
-          if (MediaRecorder.isTypeSupported(mimeTypes[i])) {
-            mimeType = mimeTypes[i];
-            break;
-          }
+          if (MediaRecorder.isTypeSupported(mimeTypes[i])) { mimeType = mimeTypes[i]; break; }
         }
         if (!mimeType) {
-          log("no supported mime type found");
+          log("no supported mime type");
           alert("Your browser does not support recording video.");
+          recording = false;
+          downloadBtn.disabled = false;
           return;
         }
         log("using mimeType: " + mimeType);
-
-        // Determine file extension
         var ext = mimeType.startsWith("video/mp4") ? "mp4" : "webm";
 
         recordedChunks = [];
-        try {
-          mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mimeType });
-          log("MediaRecorder created, state=" + mediaRecorder.state);
-        } catch (err) {
-          log("MediaRecorder creation error: " + err.message);
-          return;
-        }
+        mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mimeType });
 
         mediaRecorder.addEventListener("dataavailable", function (e) {
-          log("dataavailable: size=" + e.data.size);
           if (e.data.size > 0) recordedChunks.push(e.data);
-        });
-
-        mediaRecorder.addEventListener("error", function (e) {
-          log("MediaRecorder error: " + (e.error ? e.error.message : e));
         });
 
         mediaRecorder.addEventListener("stop", function () {
           log("MediaRecorder stopped, chunks=" + recordedChunks.length);
           var blob = new Blob(recordedChunks, { type: mimeType });
-          log("blob size=" + blob.size);
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement("a");
-          a.href = url;
-          a.download = "cut-video." + ext;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-
+          triggerBlobDownload(blob, "cut-video." + ext);
           recording = false;
           downloadStatus.classList.add("hidden");
           downloadBtn.disabled = false;
         });
 
-        // Start recording, then run preview while painting to canvas
-        recording = true;
-        downloadBtn.disabled = true;
         downloadStatus.textContent = "Recording…";
         downloadStatus.classList.remove("hidden");
-        log("starting MediaRecorder...");
         mediaRecorder.start(1000);
-        log("MediaRecorder started, state=" + mediaRecorder.state);
-        startPreviewForDownload();
-      }
+        log("MediaRecorder started");
 
-      // Same as preview but stops recorder when done
-      function startPreviewForDownload() {
+        // Play preview and paint frames to canvas
         previewing = true;
         previewBtn.classList.add("hidden");
         stopPreviewBtn.classList.remove("hidden");
 
         var startIdx = 0;
-        while (startIdx < segments.length && segments[startIdx].mode === "remove") {
-          startIdx++;
-        }
-        if (startIdx >= segments.length) {
-          finishDownload();
-          return;
-        }
-
-        playSegmentForDownload(startIdx);
+        while (startIdx < segments.length && segments[startIdx].mode === "remove") startIdx++;
+        if (startIdx >= segments.length) { finishRecorderDownload(); return; }
+        playSegmentForRecorder(startIdx);
       }
 
-      function playSegmentForDownload(idx) {
-        log("playSegmentForDownload idx=" + idx + " previewing=" + previewing + " total=" + segments.length);
-        if (!previewing || idx >= segments.length) {
-          log("playSegmentForDownload -> finishDownload");
-          finishDownload();
-          return;
-        }
+      function playSegmentForRecorder(idx) {
+        if (!previewing || idx >= segments.length) { finishRecorderDownload(); return; }
 
         var seg = segments[idx];
-        log("segment mode=" + seg.mode + " start=" + seg.start.toFixed(2) + " end=" + seg.end.toFixed(2));
+        if (seg.mode === "remove") { playSegmentForRecorder(idx + 1); return; }
 
-        if (seg.mode === "remove") {
-          playSegmentForDownload(idx + 1);
-          return;
-        }
-
-        var rate = 1;
-        if (seg.mode === "slow") rate = 0.5;
-        if (seg.mode === "fast") rate = 2;
+        var rate = seg.mode === "slow" ? 0.5 : (seg.mode === "fast" ? 2 : 1);
         video.playbackRate = rate;
-
         video.currentTime = seg.start;
-        log("playing segment at rate=" + rate);
         video.play();
 
         function checkEnd() {
-          if (!previewing) {
-            finishDownload();
-            return;
-          }
-          // Paint current video frame to canvas for recording
+          if (!previewing) { finishRecorderDownload(); return; }
           recCtx.drawImage(video, 0, 0, recCanvas.width, recCanvas.height);
           updatePlayhead();
           if (video.currentTime >= seg.end - 0.01) {
             video.pause();
-            playSegmentForDownload(idx + 1);
+            playSegmentForRecorder(idx + 1);
             return;
           }
           previewRafId = requestAnimationFrame(checkEnd);
         }
-
         previewRafId = requestAnimationFrame(checkEnd);
       }
 
-      function finishDownload() {
-        log("finishDownload called, recorder state=" + (mediaRecorder ? mediaRecorder.state : "null"));
+      function finishRecorderDownload() {
         stopPreview();
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
-          log("stopping MediaRecorder");
           mediaRecorder.stop();
         }
       }
