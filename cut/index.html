@@ -608,33 +608,50 @@
       // Load FFmpeg.wasm on first use
       async function loadFFmpeg() {
         if (ffmpegLoaded) return true;
+
+        // FFmpeg.wasm requires SharedArrayBuffer (Cross-Origin-Isolation)
+        if (typeof SharedArrayBuffer === "undefined") {
+          log("SharedArrayBuffer unavailable — skipping FFmpeg");
+          return false;
+        }
+
         log("loading FFmpeg.wasm…");
         downloadStatus.textContent = "Loading FFmpeg…";
         downloadStatus.classList.remove("hidden");
 
         try {
-          var FFmpegMod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/+esm");
-          var UtilMod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/+esm");
-
-          ffmpegInstance = new FFmpegMod.FFmpeg();
-          window._ffmpegFetchFile = UtilMod.fetchFile;
-
-          ffmpegInstance.on("log", function (e) { log("ffmpeg: " + e.message); });
-          ffmpegInstance.on("progress", function (e) {
-            var pct = Math.round((e.progress || 0) * 100);
-            downloadStatus.textContent = "Processing… " + pct + "%";
+          // Race the load against a 15s timeout
+          var timeout = new Promise(function (_, reject) {
+            setTimeout(function () { reject(new Error("timeout")); }, 15000);
           });
 
-          await ffmpegInstance.load({
-            coreURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js",
-            wasmURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm",
-          });
+          var load = (async function () {
+            var FFmpegMod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/+esm");
+            var UtilMod = await import("https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/+esm");
+
+            ffmpegInstance = new FFmpegMod.FFmpeg();
+            window._ffmpegFetchFile = UtilMod.fetchFile;
+
+            ffmpegInstance.on("log", function (e) { log("ffmpeg: " + e.message); });
+            ffmpegInstance.on("progress", function (e) {
+              var pct = Math.round((e.progress || 0) * 100);
+              downloadStatus.textContent = "Processing… " + pct + "%";
+            });
+
+            await ffmpegInstance.load({
+              coreURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js",
+              wasmURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm",
+            });
+          })();
+
+          await Promise.race([load, timeout]);
 
           ffmpegLoaded = true;
           log("FFmpeg loaded");
           return true;
         } catch (err) {
           log("FFmpeg load failed: " + err.message);
+          ffmpegInstance = null;
           return false;
         }
       }
