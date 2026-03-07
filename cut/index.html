@@ -599,10 +599,14 @@
       }
 
       /* ========================================
-         Download (record preview via captureStream)
+         Download (record via canvas + captureStream)
       ======================================== */
 
       downloadBtn.addEventListener("click", startDownload);
+
+      // Hidden canvas used to mirror the video for recording
+      var recCanvas = document.createElement("canvas");
+      var recCtx = recCanvas.getContext("2d");
 
       function startDownload() {
         log("startDownload called, segments=" + segments.length + " recording=" + recording);
@@ -611,37 +615,55 @@
           return;
         }
 
-        // Capture the video element's media stream
-        log("calling captureStream...");
+        // Size canvas to match video dimensions
+        recCanvas.width = video.videoWidth;
+        recCanvas.height = video.videoHeight;
+        log("canvas size: " + recCanvas.width + "x" + recCanvas.height);
+
+        // Get stream from canvas (video) + video element (audio)
+        var canvasStream = recCanvas.captureStream(30);
+        log("canvasStream tracks: " + canvasStream.getTracks().map(function(t) { return t.kind + ":" + t.readyState; }).join(", "));
+
+        // Try to grab audio track from the video element
         try {
-          var stream = video.captureStream();
-          log("captureStream result: " + stream);
-          log("stream tracks: " + stream.getTracks().map(function(t) { return t.kind + ":" + t.readyState; }).join(", "));
+          var videoStream = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null);
+          if (videoStream) {
+            var audioTracks = videoStream.getAudioTracks();
+            log("audio tracks found: " + audioTracks.length);
+            audioTracks.forEach(function(t) { canvasStream.addTrack(t); });
+          }
         } catch (err) {
-          log("captureStream error: " + err.message);
-          return;
-        }
-        if (!stream) {
-          log("stream is falsy");
-          alert("Your browser does not support captureStream().");
-          return;
+          log("audio capture skipped: " + err.message);
         }
 
         // Pick a supported mime type
-        var mimeType = "video/webm;codecs=vp9,opus";
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          log("not supported: " + mimeType);
-          mimeType = "video/webm;codecs=vp8,opus";
+        var mimeTypes = [
+          "video/mp4;codecs=avc1,mp4a.40.2",
+          "video/mp4",
+          "video/webm;codecs=vp9,opus",
+          "video/webm;codecs=vp8,opus",
+          "video/webm",
+        ];
+        var mimeType = "";
+        for (var i = 0; i < mimeTypes.length; i++) {
+          if (MediaRecorder.isTypeSupported(mimeTypes[i])) {
+            mimeType = mimeTypes[i];
+            break;
+          }
         }
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          log("not supported: " + mimeType);
-          mimeType = "video/webm";
+        if (!mimeType) {
+          log("no supported mime type found");
+          alert("Your browser does not support recording video.");
+          return;
         }
         log("using mimeType: " + mimeType);
 
+        // Determine file extension
+        var ext = mimeType.startsWith("video/mp4") ? "mp4" : "webm";
+
         recordedChunks = [];
         try {
-          mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+          mediaRecorder = new MediaRecorder(canvasStream, { mimeType: mimeType });
           log("MediaRecorder created, state=" + mediaRecorder.state);
         } catch (err) {
           log("MediaRecorder creation error: " + err.message);
@@ -659,13 +681,12 @@
 
         mediaRecorder.addEventListener("stop", function () {
           log("MediaRecorder stopped, chunks=" + recordedChunks.length);
-          // Build blob and trigger download
           var blob = new Blob(recordedChunks, { type: mimeType });
           log("blob size=" + blob.size);
           var url = URL.createObjectURL(blob);
           var a = document.createElement("a");
           a.href = url;
-          a.download = "cut-video.webm";
+          a.download = "cut-video." + ext;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -676,13 +697,13 @@
           downloadBtn.disabled = false;
         });
 
-        // Start recording, then run preview
+        // Start recording, then run preview while painting to canvas
         recording = true;
         downloadBtn.disabled = true;
         downloadStatus.textContent = "Recording…";
         downloadStatus.classList.remove("hidden");
         log("starting MediaRecorder...");
-        mediaRecorder.start(1000); // request data every second
+        mediaRecorder.start(1000);
         log("MediaRecorder started, state=" + mediaRecorder.state);
         startPreviewForDownload();
       }
@@ -721,7 +742,6 @@
           return;
         }
 
-        // Set playback rate (recorded at real-time speed the video plays)
         var rate = 1;
         if (seg.mode === "slow") rate = 0.5;
         if (seg.mode === "fast") rate = 2;
@@ -736,6 +756,8 @@
             finishDownload();
             return;
           }
+          // Paint current video frame to canvas for recording
+          recCtx.drawImage(video, 0, 0, recCanvas.width, recCanvas.height);
           updatePlayhead();
           if (video.currentTime >= seg.end - 0.01) {
             video.pause();
