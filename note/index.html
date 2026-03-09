@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#574747" />
+    <title>Note</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css" />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      /* Current note display */
+      .note-display {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 160px;
+      }
+
+      .note-name {
+        font-size: 5rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .note-freq {
+        font-size: 1rem;
+      }
+
+      /* Cents deviation bar */
+      .cents-bar {
+        position: relative;
+        width: 100%;
+        max-width: 300px;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--border);
+      }
+
+      .cents-bar::after {
+        content: "";
+        position: absolute;
+        top: -4px;
+        left: 50%;
+        width: 2px;
+        height: 16px;
+        background: var(--muted-foreground);
+      }
+
+      .cents-indicator {
+        position: absolute;
+        top: -6px;
+        width: 12px;
+        height: 20px;
+        border-radius: 3px;
+        background: var(--primary);
+        transform: translateX(-50%);
+        transition: left 0.08s ease-out;
+        left: 50%;
+      }
+
+      /* Clavier (piano keyboard) */
+      .clavier-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .clavier {
+        display: flex;
+        position: relative;
+        min-width: 700px;
+        height: 120px;
+      }
+
+      .clavier-white {
+        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 0 0 4px 4px;
+        background: var(--surface);
+        position: relative;
+        z-index: 0;
+        transition: background 0.1s ease;
+      }
+
+      .clavier-white.active {
+        background: var(--primary);
+      }
+
+      .clavier-black {
+        position: absolute;
+        top: 0;
+        width: 5%;
+        height: 60%;
+        background: var(--foreground);
+        border-radius: 0 0 3px 3px;
+        z-index: 1;
+        transition: background 0.1s ease;
+      }
+
+      .clavier-black.active {
+        background: var(--primary);
+      }
+
+      .clavier-label {
+        position: absolute;
+        bottom: 4px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 0.6rem;
+        color: var(--muted-foreground);
+        pointer-events: none;
+      }
+
+      .clavier-white.active .clavier-label {
+        color: var(--primary-foreground);
+      }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <main class="container">
+      <div class="header-row mb-2">
+        <h1>Note</h1>
+        <button id="toggleBtn">Start</button>
+      </div>
+
+      <!-- Current detected note -->
+      <section class="note-display mb-2">
+        <span class="note-name" id="noteName">-</span>
+        <span class="note-freq text-light" id="noteFreq">&nbsp;</span>
+        <div class="cents-bar mt-2" id="centsBar">
+          <div class="cents-indicator" id="centsIndicator"></div>
+        </div>
+      </section>
+
+      <!-- Piano keyboard showing all notes -->
+      <section class="clavier-wrapper">
+        <div class="clavier" id="clavier"></div>
+      </section>
+    </main>
+
+    <script>
+      /* === Constants === */
+      var NOTE_NAMES = [
+        "C",
+        "C#",
+        "D",
+        "D#",
+        "E",
+        "F",
+        "F#",
+        "G",
+        "G#",
+        "A",
+        "A#",
+        "B",
+      ];
+
+      /* White keys: index in the chromatic scale */
+      var WHITE_INDICES = [0, 2, 4, 5, 7, 9, 11]; // C D E F G A B
+      /* Black keys: chromatic index and position offset (fraction of white-key width from left) */
+      var BLACK_KEYS = [
+        { note: 1, after: 0 }, // C#  after C
+        { note: 3, after: 1 }, // D#  after D
+        { note: 6, after: 3 }, // F#  after F
+        { note: 8, after: 4 }, // G#  after G
+        { note: 10, after: 5 }, // A#  after A
+      ];
+
+      /* We render 3 octaves (C3-B5) for a good visual range */
+      var START_OCTAVE = 3;
+      var NUM_OCTAVES = 3;
+      var TOTAL_WHITES = 7 * NUM_OCTAVES;
+
+      /* === DOM references === */
+      var toggleBtn = document.getElementById("toggleBtn");
+      var noteNameEl = document.getElementById("noteName");
+      var noteFreqEl = document.getElementById("noteFreq");
+      var centsIndicator = document.getElementById("centsIndicator");
+      var centsBar = document.getElementById("centsBar");
+      var clavierEl = document.getElementById("clavier");
+
+      /* === Audio state === */
+      var audioCtx = null;
+      var analyser = null;
+      var mediaStream = null;
+      var rafId = null;
+      var running = false;
+
+      /* === Build the clavier === */
+      function buildClavier() {
+        clavierEl.innerHTML = "";
+        var whiteKeyEls = [];
+
+        /* White keys */
+        for (var oct = 0; oct < NUM_OCTAVES; oct++) {
+          for (var w = 0; w < 7; w++) {
+            var el = document.createElement("div");
+            el.className = "clavier-white";
+            var noteIndex = WHITE_INDICES[w];
+            var octave = START_OCTAVE + oct;
+            el.dataset.note = noteIndex;
+            el.dataset.octave = octave;
+
+            /* Label on each C key */
+            if (noteIndex === 0) {
+              var label = document.createElement("span");
+              label.className = "clavier-label";
+              label.textContent = "C" + octave;
+              el.appendChild(label);
+            }
+
+            clavierEl.appendChild(el);
+            whiteKeyEls.push({ el: el, idx: oct * 7 + w });
+          }
+        }
+
+        /* Black keys (absolutely positioned) */
+        var whiteWidth = 100 / TOTAL_WHITES; // percent
+        for (var oct = 0; oct < NUM_OCTAVES; oct++) {
+          for (var b = 0; b < BLACK_KEYS.length; b++) {
+            var bk = BLACK_KEYS[b];
+            var el = document.createElement("div");
+            el.className = "clavier-black";
+            el.dataset.note = bk.note;
+            el.dataset.octave = START_OCTAVE + oct;
+
+            /* Position: between the two white keys */
+            var whiteIdx = oct * 7 + bk.after;
+            var leftPercent = (whiteIdx + 1) * whiteWidth - whiteWidth * 0.3;
+            el.style.left = leftPercent + "%";
+
+            clavierEl.appendChild(el);
+          }
+        }
+      }
+
+      /* Highlight the matching key on the clavier */
+      function highlightKey(noteIndex, octave) {
+        /* Clear previous highlights */
+        var allKeys = clavierEl.querySelectorAll(
+          ".clavier-white, .clavier-black",
+        );
+        for (var i = 0; i < allKeys.length; i++) {
+          allKeys[i].classList.remove("active");
+        }
+
+        /* Find and highlight matching keys across octaves if out of visible range */
+        var selector =
+          '[data-note="' + noteIndex + '"][data-octave="' + octave + '"]';
+        var key = clavierEl.querySelector(selector);
+        if (key) {
+          key.classList.add("active");
+        }
+      }
+
+      /* === Pitch detection using autocorrelation === */
+      function autoCorrelate(buf, sampleRate) {
+        /* Check if there's enough signal */
+        var rms = 0;
+        for (var i = 0; i < buf.length; i++) {
+          rms += buf[i] * buf[i];
+        }
+        rms = Math.sqrt(rms / buf.length);
+        if (rms < 0.01) return -1; // too quiet
+
+        /* Trim silence from both ends */
+        var r1 = 0;
+        var r2 = buf.length - 1;
+        var threshold = 0.2;
+        for (var i = 0; i < buf.length / 2; i++) {
+          if (Math.abs(buf[i]) < threshold) {
+            r1 = i;
+          } else {
+            break;
+          }
+        }
+        for (var i = 1; i < buf.length / 2; i++) {
+          if (Math.abs(buf[buf.length - i]) < threshold) {
+            r2 = buf.length - i;
+          } else {
+            break;
+          }
+        }
+
+        buf = buf.slice(r1, r2);
+        var size = buf.length;
+
+        /* Autocorrelation */
+        var c = new Float32Array(size);
+        for (var i = 0; i < size; i++) {
+          for (var j = 0; j < size - i; j++) {
+            c[i] += buf[j] * buf[j + i];
+          }
+        }
+
+        /* Find the first dip then the next peak */
+        var d = 0;
+        while (c[d] > c[d + 1]) {
+          d++;
+          if (d >= size - 1) return -1;
+        }
+
+        var maxVal = -1;
+        var maxPos = -1;
+        for (var i = d; i < size; i++) {
+          if (c[i] > maxVal) {
+            maxVal = c[i];
+            maxPos = i;
+          }
+        }
+
+        /* Parabolic interpolation for sub-sample accuracy */
+        var t0 = maxPos > 0 ? maxPos - 1 : maxPos;
+        var t2 = maxPos < size - 1 ? maxPos + 1 : maxPos;
+        var a = c[t0];
+        var b = c[maxPos];
+        var cc = c[t2];
+        var shift = (a - cc) / (2 * (a - 2 * b + cc));
+        if (isNaN(shift)) shift = 0;
+
+        return sampleRate / (maxPos + shift);
+      }
+
+      /* Convert frequency to note info */
+      function freqToNote(freq) {
+        /* A4 = 440 Hz, MIDI note 69 */
+        var midiNote = 12 * (Math.log2(freq / 440)) + 69;
+        var rounded = Math.round(midiNote);
+        var cents = Math.round(100 * (midiNote - rounded));
+        var noteIndex = ((rounded % 12) + 12) % 12;
+        var octave = Math.floor(rounded / 12) - 1;
+        return {
+          name: NOTE_NAMES[noteIndex],
+          octave: octave,
+          noteIndex: noteIndex,
+          cents: cents,
+          freq: freq,
+        };
+      }
+
+      /* === Main detection loop === */
+      function detect() {
+        var bufLen = analyser.fftSize;
+        var buf = new Float32Array(bufLen);
+        analyser.getFloatTimeDomainData(buf);
+
+        var freq = autoCorrelate(buf, audioCtx.sampleRate);
+
+        if (freq > 0) {
+          var info = freqToNote(freq);
+          noteNameEl.textContent = info.name + info.octave;
+          noteFreqEl.textContent = info.freq.toFixed(1) + " Hz";
+
+          /* Update cents indicator (clamp to -50..+50) */
+          var clamped = Math.max(-50, Math.min(50, info.cents));
+          var pct = 50 + clamped;
+          centsIndicator.style.left = pct + "%";
+
+          highlightKey(info.noteIndex, info.octave);
+        }
+
+        if (running) {
+          rafId = requestAnimationFrame(detect);
+        }
+      }
+
+      /* === Start / Stop === */
+      function start() {
+        navigator.mediaDevices
+          .getUserMedia({ audio: true })
+          .then(function (stream) {
+            mediaStream = stream;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 4096;
+
+            var source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+
+            running = true;
+            toggleBtn.textContent = "Stop";
+            detect();
+          })
+          .catch(function (err) {
+            console.error("Microphone access denied:", err);
+            alert("Microphone access is required for note detection.");
+          });
+      }
+
+      function stop() {
+        running = false;
+        if (rafId) cancelAnimationFrame(rafId);
+        if (mediaStream) {
+          mediaStream.getTracks().forEach(function (t) {
+            t.stop();
+          });
+          mediaStream = null;
+        }
+        if (audioCtx) {
+          audioCtx.close();
+          audioCtx = null;
+        }
+        toggleBtn.textContent = "Start";
+        noteNameEl.textContent = "-";
+        noteFreqEl.innerHTML = "&nbsp;";
+        centsIndicator.style.left = "50%";
+
+        /* Clear clavier highlights */
+        var allKeys = clavierEl.querySelectorAll(
+          ".clavier-white, .clavier-black",
+        );
+        for (var i = 0; i < allKeys.length; i++) {
+          allKeys[i].classList.remove("active");
+        }
+      }
+
+      toggleBtn.addEventListener("click", function () {
+        if (running) {
+          stop();
+        } else {
+          start();
+        }
+      });
+
+      /* Build clavier on load */
+      buildClavier();
+    </script>
+  </body>
+</html>
