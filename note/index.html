@@ -73,6 +73,7 @@
         position: relative;
         min-width: 700px;
         height: 120px;
+        gap: 2px;
       }
 
       .clavier-white {
@@ -94,7 +95,8 @@
         top: 0;
         width: 5%;
         height: 60%;
-        background: var(--foreground);
+        background: #1a1a1a;
+        border: 1px solid #333;
         border-radius: 0 0 3px 3px;
         z-index: 1;
         transition: background 0.1s ease;
@@ -257,72 +259,63 @@
         }
       }
 
-      /* === Pitch detection using autocorrelation === */
+      /* === Pitch detection using NSDF (Normalized Square Difference Function) === */
       function autoCorrelate(buf, sampleRate) {
-        /* Check if there's enough signal */
-        var rms = 0;
-        for (var i = 0; i < buf.length; i++) {
-          rms += buf[i] * buf[i];
-        }
-        rms = Math.sqrt(rms / buf.length);
-        if (rms < 0.01) return -1; // too quiet
-
-        /* Trim silence from both ends */
-        var r1 = 0;
-        var r2 = buf.length - 1;
-        var threshold = 0.2;
-        for (var i = 0; i < buf.length / 2; i++) {
-          if (Math.abs(buf[i]) < threshold) {
-            r1 = i;
-          } else {
-            break;
-          }
-        }
-        for (var i = 1; i < buf.length / 2; i++) {
-          if (Math.abs(buf[buf.length - i]) < threshold) {
-            r2 = buf.length - i;
-          } else {
-            break;
-          }
-        }
-
-        buf = buf.slice(r1, r2);
         var size = buf.length;
 
-        /* Autocorrelation */
-        var c = new Float32Array(size);
+        /* Check if there's enough signal */
+        var rms = 0;
         for (var i = 0; i < size; i++) {
-          for (var j = 0; j < size - i; j++) {
-            c[i] += buf[j] * buf[j + i];
+          rms += buf[i] * buf[i];
+        }
+        rms = Math.sqrt(rms / size);
+        if (rms < 0.005) return -1; // too quiet
+
+        /* Compute NSDF: normalized autocorrelation that avoids O(n²) full scan.
+           We only check lags for frequencies between ~60 Hz and ~1500 Hz. */
+        var minLag = Math.floor(sampleRate / 1500);
+        var maxLag = Math.min(Math.ceil(sampleRate / 60), size - 1);
+
+        /* Precompute running sum of squares for normalization */
+        var nsdf = new Float32Array(maxLag + 1);
+        for (var lag = minLag; lag <= maxLag; lag++) {
+          var acf = 0;
+          var div = 0;
+          for (var j = 0; j < size - lag; j++) {
+            acf += buf[j] * buf[j + lag];
+            div += buf[j] * buf[j] + buf[j + lag] * buf[j + lag];
+          }
+          nsdf[lag] = div > 0 ? (2 * acf) / div : 0;
+        }
+
+        /* Find the first positive-going zero crossing, then the highest peak */
+        var foundPositive = false;
+        var bestLag = -1;
+        var bestVal = 0;
+        var NSDF_THRESHOLD = 0.7;
+
+        for (var lag = minLag; lag <= maxLag; lag++) {
+          if (nsdf[lag] > 0) foundPositive = true;
+          if (foundPositive && nsdf[lag] > bestVal) {
+            bestVal = nsdf[lag];
+            bestLag = lag;
+          }
+          /* Stop searching after we've passed a strong peak and dropped below threshold */
+          if (foundPositive && bestVal > NSDF_THRESHOLD && nsdf[lag] < bestVal * 0.5) {
+            break;
           }
         }
 
-        /* Find the first dip then the next peak */
-        var d = 0;
-        while (c[d] > c[d + 1]) {
-          d++;
-          if (d >= size - 1) return -1;
-        }
-
-        var maxVal = -1;
-        var maxPos = -1;
-        for (var i = d; i < size; i++) {
-          if (c[i] > maxVal) {
-            maxVal = c[i];
-            maxPos = i;
-          }
-        }
+        if (bestLag < 0 || bestVal < 0.3) return -1;
 
         /* Parabolic interpolation for sub-sample accuracy */
-        var t0 = maxPos > 0 ? maxPos - 1 : maxPos;
-        var t2 = maxPos < size - 1 ? maxPos + 1 : maxPos;
-        var a = c[t0];
-        var b = c[maxPos];
-        var cc = c[t2];
-        var shift = (a - cc) / (2 * (a - 2 * b + cc));
+        var prev = bestLag > 0 ? nsdf[bestLag - 1] : nsdf[bestLag];
+        var curr = nsdf[bestLag];
+        var next = bestLag < maxLag ? nsdf[bestLag + 1] : nsdf[bestLag];
+        var shift = (prev - next) / (2 * (prev - 2 * curr + next));
         if (isNaN(shift)) shift = 0;
 
-        return sampleRate / (maxPos + shift);
+        return sampleRate / (bestLag + shift);
       }
 
       /* Convert frequency to note info */
@@ -376,7 +369,7 @@
             mediaStream = stream;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 4096;
+            analyser.fftSize = 2048;
 
             var source = audioCtx.createMediaStreamSource(stream);
             source.connect(analyser);
