@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#574747" />
+    <title>Connect 4</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="apple-touch-icon" href="../icons/icon-192.png" />
+    <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css" />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      /* Mode / difficulty selector active states */
+      .mode-selector button.active,
+      .difficulty-selector button.active {
+        opacity: 1;
+      }
+      .mode-selector button:not(.active),
+      .difficulty-selector button:not(.active) {
+        opacity: 0.5;
+      }
+      .mode-selector button,
+      .difficulty-selector button {
+        width: auto;
+      }
+
+      /* Status line keeps a stable height */
+      .status {
+        min-height: 1.8em;
+      }
+
+      /* Scoreboard layout */
+      .scoreboard {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+      }
+      .score-item {
+        text-align: center;
+      }
+      .score-label {
+        color: var(--muted-foreground);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .score-value.red { color: #e74c3c; }
+      .score-value.yellow { color: #f1c40f; }
+      .score-value.draw { color: var(--muted-foreground); }
+
+      /* Board wrapper keeps the 7:6 board centred and responsive */
+      .c4-wrapper {
+        max-width: 460px;
+        width: 100%;
+        margin: 0 auto;
+      }
+
+      /* Board: horizontal flex row of 7 column containers */
+      .c4-board {
+        display: flex;
+        gap: 6px;
+        background: var(--card);
+        border: 2px solid var(--border);
+        border-radius: var(--radius-medium);
+        padding: 8px;
+        aspect-ratio: 7 / 6;
+        --current-color: #e74c3c;
+      }
+      .c4-board.yellow-turn {
+        --current-color: #f1c40f;
+      }
+
+      /* Each column stacks 6 cells */
+      .c4-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        cursor: pointer;
+        border-radius: var(--radius-small);
+        -webkit-tap-highlight-color: transparent;
+        transition: background 0.15s ease;
+        min-width: 0;
+      }
+      .c4-col.full,
+      .c4-col.disabled {
+        cursor: default;
+      }
+      .c4-col:hover:not(.full):not(.disabled) {
+        background: color-mix(in srgb, var(--primary) 15%, transparent);
+      }
+
+      /* Circular slots */
+      .c4-cell {
+        flex: 1;
+        aspect-ratio: 1;
+        background: var(--background);
+        border-radius: 50%;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Piece (coloured disc) sits inside the cell */
+      .c4-piece {
+        position: absolute;
+        inset: 8%;
+        border-radius: 50%;
+        box-sizing: border-box;
+      }
+      .c4-piece.red {
+        background: radial-gradient(circle at 30% 30%, #ff6b5b, #c0392b);
+      }
+      .c4-piece.yellow {
+        background: radial-gradient(circle at 30% 30%, #ffe066, #d4a017);
+      }
+
+      /* Drop-in animation: piece falls from above the board */
+      @keyframes pieceDrop {
+        0% { transform: translateY(var(--drop-from, -500%)); }
+        85% { transform: translateY(8%); }
+        100% { transform: translateY(0); }
+      }
+      .c4-piece.dropping {
+        animation: pieceDrop 0.45s cubic-bezier(0.4, 0, 0.6, 1.05);
+      }
+
+      /* Row clearing flash (tetris-style) */
+      @keyframes clearFlash {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        20%, 60% { opacity: 0.25; transform: scale(1.08); }
+        40%, 80% { opacity: 1; transform: scale(1); }
+      }
+      .c4-cell.clearing .c4-piece {
+        animation: clearFlash 0.6s ease-in-out;
+      }
+
+      /* Winning pieces pulse */
+      @keyframes winPulse {
+        0%, 100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.85);
+        }
+        50% {
+          transform: scale(1.08);
+          box-shadow: 0 0 0 6px rgba(46, 204, 113, 0.35);
+        }
+      }
+      .c4-cell.win .c4-piece {
+        animation: winPulse 0.8s ease-in-out infinite;
+      }
+
+      /* Hover preview: a faint disc in the landing slot */
+      .c4-cell.preview::after {
+        content: '';
+        position: absolute;
+        inset: 8%;
+        border-radius: 50%;
+        background: var(--current-color);
+        opacity: 0.3;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <main class="container text-center">
+      <h1>Connect 4</h1>
+      <p class="text-light">Connect four in a row — but filled rows vanish!</p>
+
+      <!-- Mode selector -->
+      <div class="flex gap-md justify-center mb-4 mode-selector">
+        <button id="btnVsBot" class="active">vs Bot</button>
+        <button id="btnVsHuman" class="outline">vs Human</button>
+      </div>
+
+      <!-- Difficulty selector (bot mode only) -->
+      <div class="flex gap-md justify-center mb-2 difficulty-selector" id="difficultySelector">
+        <button id="btnEasy" class="outline">Easy</button>
+        <button id="btnHard" class="active">Hard</button>
+      </div>
+
+      <!-- Scoreboard -->
+      <div class="scoreboard">
+        <div class="score-item">
+          <div class="score-label" id="labelRed">Red (You)</div>
+          <div class="score-value red" id="scoreRed">0</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">Draw</div>
+          <div class="score-value draw" id="scoreDraw">0</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label" id="labelYellow">Yellow (Bot)</div>
+          <div class="score-value yellow" id="scoreYellow">0</div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="status" id="status">Your turn (Red)</div>
+
+      <!-- Board -->
+      <div class="c4-wrapper">
+        <div class="c4-board" id="board"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-md justify-center flex-wrap">
+        <button id="btnNewGame">New Game</button>
+        <button id="btnResetScores" class="outline" data-variant="secondary">Reset Scores</button>
+      </div>
+    </main>
+
+    <script>
+      /* ===========================
+         Constants
+         =========================== */
+      var ROWS = 6;
+      var COLS = 7;
+      var STORAGE_KEY = 'connect4_state';
+      var HUMAN_COLOR = 'red';   // in bot mode, the human is always red (moves first)
+      var BOT_COLOR = 'yellow';
+
+      /* ===========================
+         Game state
+         =========================== */
+      var board = createEmptyBoard();
+      var currentPlayer = 'red';   // 'red' or 'yellow'
+      var gameOver = false;
+      var mode = 'bot';            // 'bot' or 'human'
+      var difficulty = 'hard';     // 'easy' or 'hard'
+      var scores = { red: 0, yellow: 0, draw: 0 };
+      var busy = false;            // true during animations / bot thinking
+
+      /* ===========================
+         DOM references
+         =========================== */
+      var boardEl = document.getElementById('board');
+      var statusEl = document.getElementById('status');
+      var scoreRedEl = document.getElementById('scoreRed');
+      var scoreYellowEl = document.getElementById('scoreYellow');
+      var scoreDrawEl = document.getElementById('scoreDraw');
+      var labelRedEl = document.getElementById('labelRed');
+      var labelYellowEl = document.getElementById('labelYellow');
+      var btnVsBot = document.getElementById('btnVsBot');
+      var btnVsHuman = document.getElementById('btnVsHuman');
+      var difficultySelector = document.getElementById('difficultySelector');
+      var btnEasy = document.getElementById('btnEasy');
+      var btnHard = document.getElementById('btnHard');
+      var btnNewGame = document.getElementById('btnNewGame');
+      var btnResetScores = document.getElementById('btnResetScores');
+
+      /* Cell element cache populated in buildBoard() */
+      var cells = [];
+      var cols = [];
+
+      /* ===========================
+         Persistence
+         =========================== */
+      function saveState() {
+        var state = { scores: scores, mode: mode, difficulty: difficulty };
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) { /* ignore quota errors */ }
+      }
+
+      function loadState() {
+        try {
+          var state = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (state) {
+            scores = state.scores || { red: 0, yellow: 0, draw: 0 };
+            mode = state.mode || 'bot';
+            difficulty = state.difficulty || 'hard';
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      /* ===========================
+         Board helpers (pure)
+         =========================== */
+      function createEmptyBoard() {
+        var b = [];
+        for (var r = 0; r < ROWS; r++) {
+          b.push(new Array(COLS).fill(''));
+        }
+        return b;
+      }
+
+      function cloneBoard(b) {
+        return b.map(function (row) { return row.slice(); });
+      }
+
+      /* Drop a piece in column `col`, returning the row it landed on. */
+      function dropPiece(b, col, player) {
+        for (var r = ROWS - 1; r >= 0; r--) {
+          if (!b[r][col]) {
+            b[r][col] = player;
+            return r;
+          }
+        }
+        return -1;
+      }
+
+      function canDrop(b, col) {
+        return !b[0][col];
+      }
+
+      /* Return the lowest empty row in a column, or -1 if full. */
+      function landingRow(b, col) {
+        for (var r = ROWS - 1; r >= 0; r--) {
+          if (!b[r][col]) return r;
+        }
+        return -1;
+      }
+
+      function isBoardFull(b) {
+        for (var c = 0; c < COLS; c++) {
+          if (!b[0][c]) return false;
+        }
+        return true;
+      }
+
+      /* Check for any 4-in-a-row. Returns { player, cells: [[r,c], ...] } or null. */
+      function checkWin(b) {
+        var dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+        for (var r = 0; r < ROWS; r++) {
+          for (var c = 0; c < COLS; c++) {
+            if (!b[r][c]) continue;
+            var p = b[r][c];
+            for (var d = 0; d < dirs.length; d++) {
+              var dr = dirs[d][0], dc = dirs[d][1];
+              var cells4 = [[r, c]];
+              var ok = true;
+              for (var i = 1; i < 4; i++) {
+                var nr = r + dr * i, nc = c + dc * i;
+                if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || b[nr][nc] !== p) {
+                  ok = false;
+                  break;
+                }
+                cells4.push([nr, nc]);
+              }
+              if (ok) return { player: p, cells: cells4 };
+            }
+          }
+        }
+        return null;
+      }
+
+      /* Return indices of rows that are completely filled. */
+      function getFilledRows(b) {
+        var filled = [];
+        for (var r = 0; r < ROWS; r++) {
+          var full = true;
+          for (var c = 0; c < COLS; c++) {
+            if (!b[r][c]) { full = false; break; }
+          }
+          if (full) filled.push(r);
+        }
+        return filled;
+      }
+
+      /* Remove the given rows and prepend empty rows on top — tetris-style. */
+      function clearRowsFromBoard(b, rowsToRemove) {
+        var removed = {};
+        for (var i = 0; i < rowsToRemove.length; i++) removed[rowsToRemove[i]] = true;
+        var newBoard = [];
+        for (var r = 0; r < ROWS; r++) {
+          if (!removed[r]) newBoard.push(b[r]);
+        }
+        while (newBoard.length < ROWS) {
+          newBoard.unshift(new Array(COLS).fill(''));
+        }
+        return newBoard;
+      }
+
+      /* ===========================
+         DOM: build the board once
+         =========================== */
+      function buildBoard() {
+        boardEl.innerHTML = '';
+        cells = [];
+        cols = [];
+        for (var r = 0; r < ROWS; r++) cells.push(new Array(COLS).fill(null));
+
+        for (var c = 0; c < COLS; c++) {
+          var colEl = document.createElement('div');
+          colEl.className = 'c4-col';
+          colEl.dataset.col = c;
+
+          for (var r2 = 0; r2 < ROWS; r2++) {
+            var cellEl = document.createElement('div');
+            cellEl.className = 'c4-cell';
+            cellEl.dataset.row = r2;
+            cellEl.dataset.col = c;
+            colEl.appendChild(cellEl);
+            cells[r2][c] = cellEl;
+          }
+
+          /* Attach column-level interactions */
+          (function (colIndex, colElement) {
+            colElement.addEventListener('click', function () {
+              handleHumanDrop(colIndex);
+            });
+            colElement.addEventListener('mouseenter', function () {
+              setHoverColumn(colIndex);
+            });
+            colElement.addEventListener('mouseleave', function () {
+              setHoverColumn(-1);
+            });
+          })(c, colEl);
+
+          cols.push(colEl);
+          boardEl.appendChild(colEl);
+        }
+      }
+
+      /* Get a cached cell element */
+      function getCell(r, c) { return cells[r][c]; }
+
+      /* ===========================
+         Rendering
+         =========================== */
+      function renderBoard() {
+        for (var r = 0; r < ROWS; r++) {
+          for (var c = 0; c < COLS; c++) {
+            var cell = getCell(r, c);
+            cell.innerHTML = '';
+            cell.classList.remove('win', 'clearing', 'preview');
+            if (board[r][c]) {
+              var piece = document.createElement('div');
+              piece.className = 'c4-piece ' + board[r][c];
+              cell.appendChild(piece);
+            }
+          }
+        }
+        updateColumnStates();
+        updateTurnColorClass();
+      }
+
+      /* Place a new piece into the DOM with a drop animation */
+      function placePieceWithDrop(row, col, player) {
+        var cell = getCell(row, col);
+        cell.innerHTML = '';
+        var piece = document.createElement('div');
+        piece.className = 'c4-piece ' + player + ' dropping';
+        /* Higher landing row → shorter visual fall */
+        var dropFrom = -((row + 2) * 110);
+        piece.style.setProperty('--drop-from', dropFrom + '%');
+        cell.appendChild(piece);
+      }
+
+      /* Mark columns that are full as disabled for hover styling */
+      function updateColumnStates() {
+        for (var c = 0; c < COLS; c++) {
+          if (!canDrop(board, c)) {
+            cols[c].classList.add('full');
+          } else {
+            cols[c].classList.remove('full');
+          }
+          if (gameOver || busy || (mode === 'bot' && currentPlayer !== HUMAN_COLOR)) {
+            cols[c].classList.add('disabled');
+          } else {
+            cols[c].classList.remove('disabled');
+          }
+        }
+      }
+
+      /* Switch the board's current-color CSS variable for the hover preview */
+      function updateTurnColorClass() {
+        if (currentPlayer === 'yellow') {
+          boardEl.classList.add('yellow-turn');
+        } else {
+          boardEl.classList.remove('yellow-turn');
+        }
+      }
+
+      /* Scoreboard + labels */
+      function updateScoreboard() {
+        scoreRedEl.textContent = scores.red;
+        scoreYellowEl.textContent = scores.yellow;
+        scoreDrawEl.textContent = scores.draw;
+        if (mode === 'bot') {
+          labelRedEl.textContent = 'Red (You)';
+          labelYellowEl.textContent = 'Yellow (Bot)';
+        } else {
+          labelRedEl.textContent = 'Red';
+          labelYellowEl.textContent = 'Yellow';
+        }
+      }
+
+      function updateModeUI() {
+        if (mode === 'bot') {
+          btnVsBot.classList.add('active');
+          btnVsBot.classList.remove('outline');
+          btnVsHuman.classList.remove('active');
+          btnVsHuman.classList.add('outline');
+          difficultySelector.style.display = '';
+        } else {
+          btnVsHuman.classList.add('active');
+          btnVsHuman.classList.remove('outline');
+          btnVsBot.classList.remove('active');
+          btnVsBot.classList.add('outline');
+          difficultySelector.style.display = 'none';
+        }
+      }
+
+      function updateDifficultyUI() {
+        if (difficulty === 'easy') {
+          btnEasy.classList.add('active');
+          btnEasy.classList.remove('outline');
+          btnHard.classList.remove('active');
+          btnHard.classList.add('outline');
+        } else {
+          btnHard.classList.add('active');
+          btnHard.classList.remove('outline');
+          btnEasy.classList.remove('active');
+          btnEasy.classList.add('outline');
+        }
+      }
+
+      function updateStatus() {
+        if (gameOver) return;
+        if (mode === 'bot') {
+          statusEl.textContent = currentPlayer === HUMAN_COLOR
+            ? 'Your turn (Red)'
+            : 'Bot is thinking...';
+        } else {
+          var name = currentPlayer === 'red' ? 'Red' : 'Yellow';
+          statusEl.textContent = name + "'s turn";
+        }
+      }
+
+      /* ===========================
+         Hover preview
+         =========================== */
+      var hoverCol = -1;
+
+      function setHoverColumn(c) {
+        hoverCol = c;
+        updateHoverPreview();
+      }
+
+      function updateHoverPreview() {
+        /* Clear all previews */
+        for (var r = 0; r < ROWS; r++) {
+          for (var c = 0; c < COLS; c++) {
+            cells[r][c].classList.remove('preview');
+          }
+        }
+        if (hoverCol < 0 || gameOver || busy) return;
+        if (mode === 'bot' && currentPlayer !== HUMAN_COLOR) return;
+        var landing = landingRow(board, hoverCol);
+        if (landing < 0) return;
+        getCell(landing, hoverCol).classList.add('preview');
+      }
+
+      /* ===========================
+         Game flow
+         =========================== */
+      function handleHumanDrop(col) {
+        if (gameOver || busy) return;
+        if (mode === 'bot' && currentPlayer !== HUMAN_COLOR) return;
+        if (!canDrop(board, col)) return;
+        performDrop(col);
+      }
+
+      function performDrop(col) {
+        busy = true;
+        setHoverColumn(-1);
+        var r = dropPiece(board, col, currentPlayer);
+        if (r < 0) { busy = false; return; }
+        placePieceWithDrop(r, col, currentPlayer);
+        updateColumnStates();
+
+        /* Wait for drop animation to settle, then resolve consequences */
+        setTimeout(processAfterMove, 470);
+      }
+
+      function processAfterMove() {
+        /* 1) Immediate win from the last placement */
+        var win = checkWin(board);
+        if (win) { endGame(win); return; }
+
+        /* 2) Clear any fully filled rows, then cascade (recheck for wins / clears) */
+        var filled = getFilledRows(board);
+        if (filled.length > 0) {
+          animateClearRows(filled, function () {
+            board = clearRowsFromBoard(board, filled);
+            renderBoard();
+            /* A cascade may have produced a new win or more full rows */
+            setTimeout(processAfterMove, 300);
+          });
+          return;
+        }
+
+        /* 3) Draw if the board is full (no legal moves) */
+        if (isBoardFull(board)) { endDraw(); return; }
+
+        /* 4) Switch turns */
+        currentPlayer = currentPlayer === 'red' ? 'yellow' : 'red';
+        updateTurnColorClass();
+        updateStatus();
+        busy = false;
+        updateColumnStates();
+        updateHoverPreview();
+
+        /* 5) Bot move */
+        if (mode === 'bot' && currentPlayer !== HUMAN_COLOR) {
+          busy = true;
+          updateColumnStates();
+          setTimeout(botMove, 500);
+        }
+      }
+
+      function animateClearRows(rows, done) {
+        var marked = [];
+        for (var i = 0; i < rows.length; i++) {
+          var r = rows[i];
+          for (var c = 0; c < COLS; c++) {
+            var cell = getCell(r, c);
+            cell.classList.add('clearing');
+            marked.push(cell);
+          }
+        }
+        setTimeout(function () {
+          for (var i = 0; i < marked.length; i++) {
+            marked[i].classList.remove('clearing');
+          }
+          done();
+        }, 620);
+      }
+
+      function endGame(result) {
+        gameOver = true;
+        busy = false;
+        scores[result.player]++;
+        updateScoreboard();
+        saveState();
+
+        /* Highlight the four winning cells */
+        for (var i = 0; i < result.cells.length; i++) {
+          var rc = result.cells[i];
+          getCell(rc[0], rc[1]).classList.add('win');
+        }
+
+        if (mode === 'bot') {
+          statusEl.textContent = result.player === HUMAN_COLOR ? 'You win!' : 'Bot wins!';
+        } else {
+          var name = result.player === 'red' ? 'Red' : 'Yellow';
+          statusEl.textContent = name + ' wins!';
+        }
+        updateColumnStates();
+        setHoverColumn(-1);
+      }
+
+      function endDraw() {
+        gameOver = true;
+        busy = false;
+        scores.draw++;
+        updateScoreboard();
+        saveState();
+        statusEl.textContent = "It's a draw!";
+        updateColumnStates();
+        setHoverColumn(-1);
+      }
+
+      function newGame() {
+        board = createEmptyBoard();
+        currentPlayer = 'red';
+        gameOver = false;
+        busy = false;
+        renderBoard();
+        updateStatus();
+        updateColumnStates();
+        /* In bot mode the human always opens as Red, so no immediate bot move */
+      }
+
+      function resetScores() {
+        scores = { red: 0, yellow: 0, draw: 0 };
+        updateScoreboard();
+        saveState();
+        newGame();
+      }
+
+      /* ===========================
+         Bot AI
+         =========================== */
+      function botMove() {
+        if (gameOver) { busy = false; return; }
+        var col = difficulty === 'easy' ? botEasy() : botHard();
+        if (col < 0) { busy = false; return; }
+        performDrop(col);
+      }
+
+      /* Easy: random legal column */
+      function botEasy() {
+        var valid = [];
+        for (var c = 0; c < COLS; c++) {
+          if (canDrop(board, c)) valid.push(c);
+        }
+        if (!valid.length) return -1;
+        return valid[Math.floor(Math.random() * valid.length)];
+      }
+
+      /* Hard: take immediate wins, block opponent wins, otherwise score columns */
+      function botHard() {
+        var legal = [];
+        for (var c = 0; c < COLS; c++) if (canDrop(board, c)) legal.push(c);
+        if (!legal.length) return -1;
+
+        /* 1) Winning move (considers row-clearing cascades) */
+        for (var i = 0; i < legal.length; i++) {
+          if (moveLeadsToWin(board, legal[i], BOT_COLOR)) return legal[i];
+        }
+        /* 2) Block the opponent's immediate win */
+        for (var j = 0; j < legal.length; j++) {
+          if (moveLeadsToWin(board, legal[j], HUMAN_COLOR)) return legal[j];
+        }
+        /* 3) Score each move: prefer the centre and pieces near the bot's own */
+        var best = -Infinity;
+        var bestCols = [];
+        for (var k = 0; k < legal.length; k++) {
+          var col = legal[k];
+          var score = evaluateMove(board, col, BOT_COLOR);
+          if (score > best) {
+            best = score;
+            bestCols = [col];
+          } else if (score === best) {
+            bestCols.push(col);
+          }
+        }
+        return bestCols[Math.floor(Math.random() * bestCols.length)];
+      }
+
+      /* Simulate a move (including row clears) and return true if it results in a win. */
+      function moveLeadsToWin(b, col, player) {
+        var sim = cloneBoard(b);
+        dropPiece(sim, col, player);
+        if (checkWin(sim) && checkWin(sim).player === player) return true;
+        /* Cascade row-clears then re-check */
+        while (true) {
+          var filled = getFilledRows(sim);
+          if (!filled.length) break;
+          sim = clearRowsFromBoard(sim, filled);
+          var w = checkWin(sim);
+          if (w && w.player === player) return true;
+        }
+        return false;
+      }
+
+      /* Lightweight heuristic: centre preference + threat counting */
+      function evaluateMove(b, col, player) {
+        var sim = cloneBoard(b);
+        var r = dropPiece(sim, col, player);
+        if (r < 0) return -Infinity;
+
+        /* Apply row clears so the evaluation reflects the post-move board */
+        while (true) {
+          var filled = getFilledRows(sim);
+          if (!filled.length) break;
+          sim = clearRowsFromBoard(sim, filled);
+        }
+
+        var score = 0;
+        /* Centre column preference: each bot piece closer to the middle scores more */
+        for (var rr = 0; rr < ROWS; rr++) {
+          for (var cc = 0; cc < COLS; cc++) {
+            if (sim[rr][cc] === player) {
+              score += 3 - Math.abs(cc - 3);
+            }
+          }
+        }
+
+        /* Count open 3-in-a-rows (threats) for the player */
+        score += countThrees(sim, player) * 5;
+        /* Penalise moves that give the opponent a 3-in-a-row */
+        score -= countThrees(sim, player === 'red' ? 'yellow' : 'red') * 6;
+        return score;
+      }
+
+      /* Count lines of length 4 that contain exactly 3 pieces of `player` and 1 empty. */
+      function countThrees(b, player) {
+        var dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+        var total = 0;
+        for (var r = 0; r < ROWS; r++) {
+          for (var c = 0; c < COLS; c++) {
+            for (var d = 0; d < dirs.length; d++) {
+              var dr = dirs[d][0], dc = dirs[d][1];
+              var endR = r + dr * 3;
+              var endC = c + dc * 3;
+              if (endR < 0 || endR >= ROWS || endC < 0 || endC >= COLS) continue;
+              var own = 0, empty = 0;
+              for (var i = 0; i < 4; i++) {
+                var v = b[r + dr * i][c + dc * i];
+                if (v === player) own++;
+                else if (!v) empty++;
+              }
+              if (own === 3 && empty === 1) total++;
+            }
+          }
+        }
+        return total;
+      }
+
+      /* ===========================
+         Event listeners
+         =========================== */
+      btnVsBot.addEventListener('click', function () {
+        mode = 'bot';
+        updateModeUI();
+        updateScoreboard();
+        saveState();
+        newGame();
+      });
+      btnVsHuman.addEventListener('click', function () {
+        mode = 'human';
+        updateModeUI();
+        updateScoreboard();
+        saveState();
+        newGame();
+      });
+      btnEasy.addEventListener('click', function () {
+        difficulty = 'easy';
+        updateDifficultyUI();
+        saveState();
+        newGame();
+      });
+      btnHard.addEventListener('click', function () {
+        difficulty = 'hard';
+        updateDifficultyUI();
+        saveState();
+        newGame();
+      });
+      btnNewGame.addEventListener('click', newGame);
+      btnResetScores.addEventListener('click', resetScores);
+
+      /* ===========================
+         Initialize
+         =========================== */
+      loadState();
+      buildBoard();
+      updateModeUI();
+      updateDifficultyUI();
+      updateScoreboard();
+      newGame();
+    </script>
+  </body>
+</html>
