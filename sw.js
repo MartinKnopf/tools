@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v23';
+const CACHE_NAME = 'static-tools-v24';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -26,6 +26,8 @@ const PRECACHE_URLS = [
   '/tools/tic-tac-toe/index.html',
 
   '/tools/connect-4/index.html',
+
+  '/tools/strategery/index.html',
 
   '/tools/minesweeper/index.html',
 

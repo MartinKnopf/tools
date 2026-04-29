@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#574747" />
+    <title>Strategery</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="apple-touch-icon" href="../icons/icon-192.png" />
+    <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css" />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      /* Per-player identity colors are load-bearing gameplay signals,
+         so we use a fixed palette instead of oat's semantic colors. */
+      :root {
+        --p-blue:   #3498db;
+        --p-red:    #e74c3c;
+        --p-green:  #2ecc71;
+        --p-orange: #e67e22;
+        --p-pink:   #e91e97;
+        --p-empty:  #2a2a2a;
+      }
+
+      /* Board wrapper keeps the SVG centered and responsive */
+      .board-wrapper {
+        max-width: 640px;
+        width: 100%;
+        margin: 0 auto;
+        position: relative;
+        touch-action: manipulation;
+      }
+
+      .board-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      /* Hex cells */
+      .hex {
+        stroke: #111;
+        stroke-width: 1.5;
+        cursor: pointer;
+        transition: filter 0.15s ease;
+      }
+      .hex.owner-0 { fill: var(--p-blue); }
+      .hex.owner-1 { fill: var(--p-red); }
+      .hex.owner-2 { fill: var(--p-green); }
+      .hex.owner-3 { fill: var(--p-orange); }
+      .hex.owner-4 { fill: var(--p-pink); }
+      .hex.empty   { fill: var(--p-empty); }
+
+      .hex.selected {
+        stroke: #fff;
+        stroke-width: 3;
+        filter: brightness(1.2);
+      }
+      .hex.target {
+        stroke: #fff;
+        stroke-width: 2.5;
+        stroke-dasharray: 4 3;
+      }
+      .hex.disabled {
+        cursor: default;
+      }
+
+      /* Army count labels */
+      .army-label {
+        fill: #fff;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-weight: 700;
+        font-size: 11px;
+        text-anchor: middle;
+        dominant-baseline: central;
+        pointer-events: none;
+        paint-order: stroke;
+        stroke: rgba(0, 0, 0, 0.5);
+        stroke-width: 2;
+        transition: opacity 0.2s ease;
+      }
+
+      /* Dice group shown during battle, fades in/out over the hex. */
+      .dice-group {
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+      .dice-group.visible { opacity: 1; }
+      .die-face {
+        fill: #fff;
+        stroke: #000;
+        stroke-width: 0.4;
+      }
+      .die-pip {
+        fill: #000;
+      }
+
+      /* Floating battle / bonus badges */
+      .float-badge {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        pointer-events: none;
+        animation: floatUp 0.9s ease-out forwards;
+        z-index: 5;
+        white-space: nowrap;
+      }
+      @keyframes floatUp {
+        0%   { opacity: 0; transform: translate(-50%, -30%) scale(0.8); }
+        15%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        80%  { opacity: 1; transform: translate(-50%, -90%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -120%) scale(0.95); }
+      }
+
+      /* Player HUD row */
+      .hud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        justify-content: center;
+        margin-bottom: var(--space-2);
+      }
+      .hud-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: var(--radius-small);
+        background: var(--card);
+        border: 1px solid var(--border);
+        font-variant-numeric: tabular-nums;
+      }
+      .hud-item.active {
+        outline: 2px solid #fff;
+      }
+      .hud-item.dead {
+        opacity: 0.35;
+        text-decoration: line-through;
+      }
+      .hud-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .hud-dot.owner-0 { background: var(--p-blue); }
+      .hud-dot.owner-1 { background: var(--p-red); }
+      .hud-dot.owner-2 { background: var(--p-green); }
+      .hud-dot.owner-3 { background: var(--p-orange); }
+      .hud-dot.owner-4 { background: var(--p-pink); }
+
+      .status {
+        min-height: 1.8em;
+        text-align: center;
+      }
+
+      /* Setup screen scoreboard */
+      .scoreboard {
+        display: flex;
+        justify-content: center;
+        gap: var(--space-4);
+      }
+      .score-item { text-align: center; }
+      .score-label {
+        color: var(--muted-foreground);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.8em;
+      }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <main class="container text-center">
+      <h1>Strategery</h1>
+      <p class="text-light">Conquer the hex map. Expand, roll dice, reinforce your cluster.</p>
+
+      <!-- Scoreboard persists across sessions -->
+      <div class="scoreboard">
+        <div class="score-item">
+          <div class="score-label">Wins</div>
+          <div class="score-value" id="scoreWins">0</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">Losses</div>
+          <div class="score-value" id="scoreLosses">0</div>
+        </div>
+      </div>
+
+      <!-- SETUP: map preview + controls -->
+      <section id="setupSection">
+        <div class="hud" id="setupHud"></div>
+        <div class="board-wrapper">
+          <svg class="board-svg" id="setupSvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div class="flex gap-md justify-center flex-wrap" style="margin-top: var(--space-3);">
+          <button id="btnNewMap" class="outline">New Map</button>
+          <button id="btnPlayMap">Play This Map</button>
+        </div>
+      </section>
+
+      <!-- PLAY: active game -->
+      <section id="playSection" hidden>
+        <div class="hud" id="playHud"></div>
+        <div class="status" id="status"></div>
+        <div class="board-wrapper" id="playWrapper">
+          <svg class="board-svg" id="playSvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div class="flex gap-md justify-center flex-wrap" style="margin-top: var(--space-3);">
+          <button id="btnEndTurn">End Turn</button>
+          <button id="btnResign" class="outline">Resign</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      /* ============================================================
+         Strategery — hex grid conquest
+         Core rules (derived from the iOS game screenshots):
+           - N players, random map, equal countries + armies each.
+           - On your turn, repeatedly attack: own country (>=2 armies)
+             against an adjacent enemy. Leave 1 behind.
+           - Battle: each army = 1d6. Higher total wins, ties to defender.
+             Winner may lose some armies on close rolls.
+           - End of turn: bonus armies = size of your largest connected
+             cluster of countries.
+           - Last color standing wins.
+         ============================================================ */
+
+      /* ===========================
+         Constants
+         =========================== */
+      var STORAGE_KEY = 'strategery_state';
+      var NUM_PLAYERS = 5;             /* 1 human + 4 AI */
+      var GRID_COLS = 9;
+      var GRID_ROWS = 11;
+      var EDGE_TRIM_CHANCE = 0.12;     /* % of edge hexes randomly removed */
+      var STARTING_ARMIES_PER_PLAYER = 40;
+      var HEX_SIZE = 22;               /* pixel radius, scales via SVG viewBox */
+      var PLAYER_NAMES = ['You', 'Red', 'Green', 'Orange', 'Pink'];
+
+      /* ===========================
+         Persistence
+         =========================== */
+      var persistent = { wins: 0, losses: 0 };
+
+      function loadState() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            var s = JSON.parse(raw);
+            persistent.wins = s.wins || 0;
+            persistent.losses = s.losses || 0;
+          }
+        } catch (e) { /* ignore */ }
+      }
+      function saveState() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(persistent)); }
+        catch (e) { /* ignore */ }
+      }
+
+      /* ===========================
+         Hex geometry (pointy-top, odd-row offset)
+         Neighbors depend on whether the row is even or odd.
+         =========================== */
+      var NEIGHBOR_EVEN = [[+1, 0], [0, -1], [-1, -1], [-1, 0], [-1, +1], [0, +1]];
+      var NEIGHBOR_ODD  = [[+1, 0], [+1, -1], [0, -1], [-1, 0], [0, +1], [+1, +1]];
+
+      function neighborsOf(col, row) {
+        var offs = (row % 2 === 0) ? NEIGHBOR_EVEN : NEIGHBOR_ODD;
+        var out = [];
+        for (var i = 0; i < offs.length; i++) {
+          out.push({ col: col + offs[i][0], row: row + offs[i][1] });
+        }
+        return out;
+      }
+
+      function cellKey(col, row) { return col + ',' + row; }
+
+      /* Pixel center of a hex (pointy-top). */
+      function hexCenter(col, row, size) {
+        var w = Math.sqrt(3) * size;                 /* width */
+        var h = 2 * size;                            /* height */
+        var x = w * col + (row % 2 === 0 ? 0 : w / 2);
+        var y = h * 0.75 * row;
+        return { x: x, y: y };
+      }
+
+      /* SVG polygon points string for a pointy-top hex. */
+      function hexPolygon(cx, cy, size) {
+        var pts = [];
+        for (var i = 0; i < 6; i++) {
+          var angle = Math.PI / 180 * (60 * i - 30);
+          var x = cx + size * Math.cos(angle);
+          var y = cy + size * Math.sin(angle);
+          pts.push(x.toFixed(2) + ',' + y.toFixed(2));
+        }
+        return pts.join(' ');
+      }
+
+      /* ===========================
+         Map generation
+         =========================== */
+      function generateMap() {
+        /* 1) Build a rectangular grid of cells. */
+        var cells = {};
+        var allKeys = [];
+        for (var r = 0; r < GRID_ROWS; r++) {
+          for (var c = 0; c < GRID_COLS; c++) {
+            allKeys.push(cellKey(c, r));
+            cells[cellKey(c, r)] = { col: c, row: r, owner: -1, armies: 0 };
+          }
+        }
+
+        /* 2) Trim random edge cells for an irregular silhouette. */
+        var keep = {};
+        for (var i = 0; i < allKeys.length; i++) {
+          var k = allKeys[i];
+          var cell = cells[k];
+          var isEdge = cell.col === 0 || cell.col === GRID_COLS - 1
+                    || cell.row === 0 || cell.row === GRID_ROWS - 1;
+          if (isEdge && Math.random() < EDGE_TRIM_CHANCE) continue;
+          keep[k] = true;
+        }
+        /* Filter to kept cells only */
+        var kept = {};
+        var keptKeys = [];
+        for (var j = 0; j < allKeys.length; j++) {
+          if (keep[allKeys[j]]) {
+            kept[allKeys[j]] = cells[allKeys[j]];
+            keptKeys.push(allKeys[j]);
+          }
+        }
+
+        /* 3) Shuffle and deal owners round-robin so each gets equal countries. */
+        shuffle(keptKeys);
+        var perPlayer = Math.floor(keptKeys.length / NUM_PLAYERS);
+        var dealt = perPlayer * NUM_PLAYERS;
+        for (var m = 0; m < dealt; m++) {
+          var owner = m % NUM_PLAYERS;
+          kept[keptKeys[m]].owner = owner;
+        }
+        /* Leftover cells (remainder) become neutral. Keep count equal. */
+        for (var n = dealt; n < keptKeys.length; n++) {
+          delete kept[keptKeys[n]];
+        }
+
+        /* 4) Distribute starting armies: STARTING_ARMIES_PER_PLAYER per owner,
+              each country >= 1, remainder randomly. */
+        var byOwner = [];
+        for (var p = 0; p < NUM_PLAYERS; p++) byOwner.push([]);
+        for (var key in kept) {
+          byOwner[kept[key].owner].push(kept[key]);
+        }
+        for (var p2 = 0; p2 < NUM_PLAYERS; p2++) {
+          var countries = byOwner[p2];
+          for (var cc = 0; cc < countries.length; cc++) countries[cc].armies = 1;
+          var remaining = STARTING_ARMIES_PER_PLAYER - countries.length;
+          while (remaining > 0) {
+            var pick = countries[Math.floor(Math.random() * countries.length)];
+            /* Cap per-country at 8 for aesthetics & reachability */
+            if (pick.armies < 8) { pick.armies++; remaining--; }
+            else if (!countries.some(function (x) { return x.armies < 8; })) break;
+          }
+        }
+
+        return { cells: kept };
+      }
+
+      function shuffle(arr) {
+        for (var i = arr.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+        }
+      }
+
+      /* ===========================
+         Cluster / connectivity
+         =========================== */
+      function connectedComponents(mapState, owner) {
+        var visited = {};
+        var comps = [];
+        for (var key in mapState.cells) {
+          if (mapState.cells[key].owner !== owner || visited[key]) continue;
+          var comp = [];
+          var stack = [key];
+          while (stack.length) {
+            var k = stack.pop();
+            if (visited[k]) continue;
+            visited[k] = true;
+            var cell = mapState.cells[k];
+            if (!cell || cell.owner !== owner) continue;
+            comp.push(k);
+            var nbrs = neighborsOf(cell.col, cell.row);
+            for (var i = 0; i < nbrs.length; i++) {
+              var nk = cellKey(nbrs[i].col, nbrs[i].row);
+              if (mapState.cells[nk] && mapState.cells[nk].owner === owner && !visited[nk]) {
+                stack.push(nk);
+              }
+            }
+          }
+          comps.push(comp);
+        }
+        return comps;
+      }
+
+      function largestClusterSize(mapState, owner) {
+        var comps = connectedComponents(mapState, owner);
+        var max = 0;
+        for (var i = 0; i < comps.length; i++) max = Math.max(max, comps[i].length);
+        return max;
+      }
+
+      function ownerHasTerritory(mapState, owner) {
+        for (var k in mapState.cells) {
+          if (mapState.cells[k].owner === owner) return true;
+        }
+        return false;
+      }
+
+      function countryCount(mapState, owner) {
+        var n = 0;
+        for (var k in mapState.cells) if (mapState.cells[k].owner === owner) n++;
+        return n;
+      }
+
+      function armyTotal(mapState, owner) {
+        var n = 0;
+        for (var k in mapState.cells) if (mapState.cells[k].owner === owner) n += mapState.cells[k].armies;
+        return n;
+      }
+
+      function bordersEnemy(mapState, cell) {
+        var nbrs = neighborsOf(cell.col, cell.row);
+        for (var i = 0; i < nbrs.length; i++) {
+          var nc = mapState.cells[cellKey(nbrs[i].col, nbrs[i].row)];
+          if (nc && nc.owner !== cell.owner) return true;
+        }
+        return false;
+      }
+
+      /* ===========================
+         Battle resolution
+         =========================== */
+      function rollDice(n) {
+        var rolls = [];
+        var total = 0;
+        for (var i = 0; i < n; i++) {
+          var r = 1 + Math.floor(Math.random() * 6);
+          rolls.push(r);
+          total += r;
+        }
+        return { rolls: rolls, total: total };
+      }
+
+      /* Resolve attacker -> defender. Mutates the cells in-place. */
+      function resolveBattle(mapState, attackerKey, defenderKey) {
+        var A = mapState.cells[attackerKey];
+        var D = mapState.cells[defenderKey];
+        var attackerDice = A.armies - 1;           /* one stays behind */
+        var defenderDice = D.armies;
+        var aRoll = rollDice(attackerDice);
+        var dRoll = rollDice(defenderDice);
+
+        var result = {
+          attackerTotal: aRoll.total,
+          defenderTotal: dRoll.total,
+          attackerRolls: aRoll.rolls,
+          defenderRolls: dRoll.rolls,
+          won: false,
+          survivors: 0
+        };
+
+        if (aRoll.total > dRoll.total) {
+          /* Attacker wins. Close rolls cost some armies. */
+          var margin = aRoll.total - dRoll.total;
+          var maxLoss = Math.max(0, attackerDice - 1);
+          var losses = Math.max(0, Math.min(maxLoss, Math.floor(D.armies - margin / 3)));
+          var survivors = attackerDice - losses;
+          if (survivors < 1) survivors = 1;
+          D.owner = A.owner;
+          D.armies = survivors;
+          A.armies = 1;
+          result.won = true;
+          result.survivors = survivors;
+        } else {
+          /* Defender wins (ties go to defender). Attacker loses everyone who rolled. */
+          A.armies = 1;
+        }
+        return result;
+      }
+
+      /* ===========================
+         Reinforcement distribution
+         =========================== */
+      function distributeReinforcements(mapState, owner, n) {
+        var own = [];
+        for (var k in mapState.cells) {
+          if (mapState.cells[k].owner === owner) own.push(mapState.cells[k]);
+        }
+        if (!own.length || n <= 0) return;
+
+        /* Prefer border countries first (they'll need the armies). */
+        var borders = own.filter(function (c) { return bordersEnemy(mapState, c); });
+        var interior = own.filter(function (c) { return !bordersEnemy(mapState, c); });
+        var pool = borders.length ? borders : interior;
+
+        for (var i = 0; i < n; i++) {
+          /* Pick the weakest border country so reinforcements go where needed. */
+          pool.sort(function (a, b) { return a.armies - b.armies; });
+          var target = pool[0];
+          if (target.armies < 8) {
+            target.armies++;
+          } else {
+            /* Everyone capped: find any country under cap across ALL owned */
+            var anyUnder = own.filter(function (c) { return c.armies < 8; });
+            if (!anyUnder.length) break;
+            anyUnder.sort(function (a, b) { return a.armies - b.armies; });
+            anyUnder[0].armies++;
+          }
+        }
+      }
+
+      /* ===========================
+         SVG rendering
+         =========================== */
+      function renderMap(svgEl, mapState, interactive, handlers) {
+        /* Compute bounds from all cells to set viewBox. */
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (var k in mapState.cells) {
+          var cell = mapState.cells[k];
+          var ctr = hexCenter(cell.col, cell.row, HEX_SIZE);
+          if (ctr.x - HEX_SIZE < minX) minX = ctr.x - HEX_SIZE;
+          if (ctr.y - HEX_SIZE < minY) minY = ctr.y - HEX_SIZE;
+          if (ctr.x + HEX_SIZE > maxX) maxX = ctr.x + HEX_SIZE;
+          if (ctr.y + HEX_SIZE > maxY) maxY = ctr.y + HEX_SIZE;
+        }
+        var pad = 4;
+        var vbW = (maxX - minX) + pad * 2;
+        var vbH = (maxY - minY) + pad * 2;
+        svgEl.setAttribute('viewBox', (minX - pad) + ' ' + (minY - pad) + ' ' + vbW + ' ' + vbH);
+
+        svgEl.innerHTML = '';
+        for (var kk in mapState.cells) {
+          var c = mapState.cells[kk];
+          var ctr2 = hexCenter(c.col, c.row, HEX_SIZE);
+          var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          poly.setAttribute('points', hexPolygon(ctr2.x, ctr2.y, HEX_SIZE));
+          poly.setAttribute('class', 'hex owner-' + c.owner);
+          poly.dataset.key = kk;
+          svgEl.appendChild(poly);
+
+          var txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', ctr2.x);
+          txt.setAttribute('y', ctr2.y);
+          txt.setAttribute('class', 'army-label');
+          txt.dataset.key = kk;
+          txt.textContent = c.armies;
+          svgEl.appendChild(txt);
+
+          if (interactive && handlers && handlers.onCellTap) {
+            (function (key) {
+              poly.addEventListener('click', function () { handlers.onCellTap(key); });
+            })(kk);
+          }
+        }
+      }
+
+      function setHexClass(svgEl, key, className, on) {
+        var poly = svgEl.querySelector('polygon[data-key="' + key + '"]');
+        if (!poly) return;
+        if (on) poly.classList.add(className);
+        else poly.classList.remove(className);
+      }
+
+      function clearHexClass(svgEl, className) {
+        var all = svgEl.querySelectorAll('polygon.' + className);
+        for (var i = 0; i < all.length; i++) all[i].classList.remove(className);
+      }
+
+      function floatBadge(wrapperEl, svgEl, key, text) {
+        var cell = gameMap.cells[key];
+        if (!cell) return;
+        var ctr = hexCenter(cell.col, cell.row, HEX_SIZE);
+        var vb = svgEl.viewBox.baseVal;
+        var rect = svgEl.getBoundingClientRect();
+        var xPct = ((ctr.x - vb.x) / vb.width) * rect.width;
+        var yPct = ((ctr.y - vb.y) / vb.height) * rect.height;
+        var badge = document.createElement('div');
+        badge.className = 'float-badge';
+        badge.textContent = text;
+        badge.style.left = xPct + 'px';
+        badge.style.top = yPct + 'px';
+        wrapperEl.appendChild(badge);
+        setTimeout(function () {
+          if (badge.parentNode) badge.parentNode.removeChild(badge);
+        }, 1000);
+      }
+
+      /* ===========================
+         Battle dice animation
+         Each army participating shows as a white die with black pips.
+         =========================== */
+      var DIE_RADIUS = 4.2;
+
+      /* Pip positions relative to die center, in units of die radius. */
+      var PIP_MAP = {
+        1: [[0, 0]],
+        2: [[-0.45, -0.45], [0.45, 0.45]],
+        3: [[-0.45, -0.45], [0, 0], [0.45, 0.45]],
+        4: [[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]],
+        5: [[-0.45, -0.45], [0.45, -0.45], [0, 0], [-0.45, 0.45], [0.45, 0.45]],
+        6: [[-0.45, -0.5], [0.45, -0.5], [-0.45, 0], [0.45, 0], [-0.45, 0.5], [0.45, 0.5]]
+      };
+
+      /* Die-cluster layouts inside a hex for 1..8 dice. Offsets in SVG units. */
+      var DICE_LAYOUTS = {
+        1: [[0, 0]],
+        2: [[-5.5, 0], [5.5, 0]],
+        3: [[-6, -4], [6, -4], [0, 5]],
+        4: [[-5.5, -5.5], [5.5, -5.5], [-5.5, 5.5], [5.5, 5.5]],
+        5: [[-7, -6], [7, -6], [0, 0], [-7, 6], [7, 6]],
+        6: [[-7, -6], [0, -6], [7, -6], [-7, 6], [0, 6], [7, 6]],
+        7: [[-8, -7], [0, -7], [8, -7], [0, 0], [-8, 7], [0, 7], [8, 7]],
+        8: [[-8, -8], [0, -8], [8, -8], [-6, 0], [6, 0], [-8, 8], [0, 8], [8, 8]]
+      };
+
+      function diceLayout(count) {
+        if (count <= 0) return [];
+        if (count <= 8) return DICE_LAYOUTS[count];
+        /* Fallback for larger counts (shouldn't happen with army cap 8). */
+        return DICE_LAYOUTS[8];
+      }
+
+      /* Build a die with pips as SVG children of `parent`. */
+      function buildDie(parent, cx, cy, r, value) {
+        var face = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        face.setAttribute('class', 'die-face');
+        face.setAttribute('x', cx - r);
+        face.setAttribute('y', cy - r);
+        face.setAttribute('width', r * 2);
+        face.setAttribute('height', r * 2);
+        face.setAttribute('rx', r * 0.3);
+        face.setAttribute('ry', r * 0.3);
+        parent.appendChild(face);
+
+        var pips = PIP_MAP[value] || [];
+        var pipR = r * 0.2;
+        for (var i = 0; i < pips.length; i++) {
+          var pip = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          pip.setAttribute('class', 'die-pip');
+          pip.setAttribute('cx', cx + pips[i][0] * r);
+          pip.setAttribute('cy', cy + pips[i][1] * r);
+          pip.setAttribute('r', pipR);
+          parent.appendChild(pip);
+        }
+      }
+
+      /* Show a cluster of dice inside a hex; hide its army-label while visible. */
+      function showDice(svgEl, key, rolls) {
+        var cell = gameMap.cells[key];
+        if (!cell || !rolls || !rolls.length) return;
+        var ctr = hexCenter(cell.col, cell.row, HEX_SIZE);
+
+        /* Hide the number label behind the dice */
+        var label = svgEl.querySelector('text.army-label[data-key="' + cssEsc(key) + '"]');
+        if (label) label.style.opacity = '0';
+
+        var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'dice-group');
+        g.dataset.key = key;
+
+        var layout = diceLayout(rolls.length);
+        for (var i = 0; i < rolls.length; i++) {
+          var dx = layout[i][0], dy = layout[i][1];
+          buildDie(g, ctr.x + dx, ctr.y + dy, DIE_RADIUS, rolls[i]);
+        }
+        svgEl.appendChild(g);
+
+        /* Next frame → trigger CSS transition to fade in */
+        requestAnimationFrame(function () {
+          g.classList.add('visible');
+        });
+      }
+
+      /* Fade dice out (and restore labels); the full re-render after will clean up. */
+      function hideDice(svgEl) {
+        var groups = svgEl.querySelectorAll('.dice-group');
+        for (var i = 0; i < groups.length; i++) {
+          groups[i].classList.remove('visible');
+        }
+        var labels = svgEl.querySelectorAll('text.army-label');
+        for (var j = 0; j < labels.length; j++) labels[j].style.opacity = '';
+      }
+
+      /* CSS.escape fallback for older browsers */
+      function cssEsc(s) {
+        if (window.CSS && CSS.escape) return CSS.escape(s);
+        return s.replace(/[^a-zA-Z0-9_-]/g, function (c) { return '\\' + c; });
+      }
+
+      /* ===========================
+         HUD
+         =========================== */
+      function renderHud(hudEl, mapState, activeOwner) {
+        hudEl.innerHTML = '';
+        for (var i = 0; i < NUM_PLAYERS; i++) {
+          var countries = countryCount(mapState, i);
+          var armies = armyTotal(mapState, i);
+          var item = document.createElement('div');
+          item.className = 'hud-item';
+          if (i === activeOwner) item.classList.add('active');
+          if (countries === 0) item.classList.add('dead');
+          var dot = document.createElement('div');
+          dot.className = 'hud-dot owner-' + i;
+          item.appendChild(dot);
+          var label = document.createElement('span');
+          label.textContent = PLAYER_NAMES[i] + ': ' + armies;
+          item.appendChild(label);
+          hudEl.appendChild(item);
+        }
+      }
+
+      /* ===========================
+         Game state
+         =========================== */
+      var gameMap = null;            /* active map */
+      var previewMap = null;         /* setup preview map */
+      var currentPlayer = 0;
+      var selectedKey = null;
+      var gameOver = false;
+      var busy = false;              /* blocks input during AI / animations */
+
+      /* DOM refs */
+      var setupSection = document.getElementById('setupSection');
+      var playSection = document.getElementById('playSection');
+      var setupSvg = document.getElementById('setupSvg');
+      var playSvg = document.getElementById('playSvg');
+      var setupHud = document.getElementById('setupHud');
+      var playHud = document.getElementById('playHud');
+      var statusEl = document.getElementById('status');
+      var playWrapper = document.getElementById('playWrapper');
+      var scoreWinsEl = document.getElementById('scoreWins');
+      var scoreLossesEl = document.getElementById('scoreLosses');
+
+      /* ===========================
+         Setup screen
+         =========================== */
+      function showSetup() {
+        setupSection.hidden = false;
+        playSection.hidden = true;
+        previewMap = generateMap();
+        renderMap(setupSvg, previewMap, false, null);
+        renderHud(setupHud, previewMap, -1);
+      }
+
+      document.getElementById('btnNewMap').addEventListener('click', function () {
+        previewMap = generateMap();
+        renderMap(setupSvg, previewMap, false, null);
+        renderHud(setupHud, previewMap, -1);
+      });
+
+      document.getElementById('btnPlayMap').addEventListener('click', function () {
+        startGame(previewMap);
+      });
+
+      /* ===========================
+         Game flow
+         =========================== */
+      function startGame(mapToUse) {
+        gameMap = mapToUse || generateMap();
+        currentPlayer = 0;
+        selectedKey = null;
+        gameOver = false;
+        busy = false;
+        setupSection.hidden = true;
+        playSection.hidden = false;
+        renderMap(playSvg, gameMap, true, { onCellTap: onCellTap });
+        renderHud(playHud, gameMap, currentPlayer);
+        updateStatus();
+      }
+
+      function updateStatus() {
+        if (gameOver) return;
+        if (currentPlayer === 0) {
+          statusEl.textContent = selectedKey
+            ? 'Tap an adjacent enemy to attack, or tap again to cancel.'
+            : 'Your turn — tap one of your countries (needs 2+ armies).';
+        } else {
+          statusEl.textContent = PLAYER_NAMES[currentPlayer] + ' is thinking…';
+        }
+      }
+
+      function onCellTap(key) {
+        if (busy || gameOver || currentPlayer !== 0) return;
+        var cell = gameMap.cells[key];
+        if (!cell) return;
+
+        /* Selecting one of your own countries */
+        if (cell.owner === 0) {
+          if (selectedKey === key) {
+            clearSelection();
+            updateStatus();
+            return;
+          }
+          if (cell.armies < 2) {
+            /* Can't attack from a single-army country. */
+            return;
+          }
+          selectedKey = key;
+          clearHexClass(playSvg, 'selected');
+          clearHexClass(playSvg, 'target');
+          setHexClass(playSvg, key, 'selected', true);
+          /* Highlight adjacent enemies */
+          var nbrs = neighborsOf(cell.col, cell.row);
+          for (var i = 0; i < nbrs.length; i++) {
+            var nk = cellKey(nbrs[i].col, nbrs[i].row);
+            var nc = gameMap.cells[nk];
+            if (nc && nc.owner !== 0) {
+              setHexClass(playSvg, nk, 'target', true);
+            }
+          }
+          updateStatus();
+          return;
+        }
+
+        /* Tapped an enemy while a country is selected → attack if adjacent */
+        if (selectedKey) {
+          var src = gameMap.cells[selectedKey];
+          var adjacent = neighborsOf(src.col, src.row).some(function (n) {
+            return cellKey(n.col, n.row) === key;
+          });
+          if (!adjacent) return;
+          doAttack(selectedKey, key);
+        }
+      }
+
+      function clearSelection() {
+        selectedKey = null;
+        clearHexClass(playSvg, 'selected');
+        clearHexClass(playSvg, 'target');
+      }
+
+      function doAttack(aKey, dKey) {
+        busy = true;
+        clearSelection();
+        var result = resolveBattle(gameMap, aKey, dKey);
+        /* Show the attacker and defender dice on the board */
+        showDice(playSvg, aKey, result.attackerRolls);
+        showDice(playSvg, dKey, result.defenderRolls);
+        /* Transient badge showing the totals */
+        floatBadge(playWrapper, playSvg,
+                   result.won ? dKey : aKey,
+                   result.attackerTotal + ' vs ' + result.defenderTotal);
+
+        /* Give the player a beat to read the dice, then resolve visuals. */
+        setTimeout(function () { hideDice(playSvg); }, 1100);
+        setTimeout(function () {
+          renderMap(playSvg, gameMap, true, { onCellTap: onCellTap });
+          renderHud(playHud, gameMap, currentPlayer);
+          if (checkGameOver()) { busy = false; return; }
+          busy = false;
+          updateStatus();
+        }, 1400);
+      }
+
+      function checkGameOver() {
+        var alive = [];
+        for (var i = 0; i < NUM_PLAYERS; i++) {
+          if (ownerHasTerritory(gameMap, i)) alive.push(i);
+        }
+        if (alive.length === 1) {
+          gameOver = true;
+          if (alive[0] === 0) {
+            statusEl.textContent = 'You win!';
+            persistent.wins++;
+          } else {
+            statusEl.textContent = PLAYER_NAMES[alive[0]] + ' wins.';
+          }
+          saveState();
+          updateScoreboardUI();
+          return true;
+        }
+        if (!ownerHasTerritory(gameMap, 0) && !gameOver) {
+          gameOver = true;
+          statusEl.textContent = 'You were eliminated.';
+          persistent.losses++;
+          saveState();
+          updateScoreboardUI();
+          return true;
+        }
+        return false;
+      }
+
+      /* End-of-turn: reinforce current player, hand off to next. */
+      document.getElementById('btnEndTurn').addEventListener('click', function () {
+        if (busy || gameOver || currentPlayer !== 0) return;
+        endTurn();
+      });
+
+      document.getElementById('btnResign').addEventListener('click', function () {
+        if (gameOver) { showSetup(); return; }
+        if (!confirm('Resign this game?')) return;
+        gameOver = true;
+        persistent.losses++;
+        saveState();
+        updateScoreboardUI();
+        showSetup();
+      });
+
+      function endTurn() {
+        busy = true;
+        clearSelection();
+        reinforceAndAdvance();
+      }
+
+      function reinforceAndAdvance() {
+        var owner = currentPlayer;
+        if (ownerHasTerritory(gameMap, owner)) {
+          var bonus = largestClusterSize(gameMap, owner);
+          if (bonus > 0) {
+            distributeReinforcements(gameMap, owner, bonus);
+            /* Flash a +N near one of their countries */
+            var anchorKey = null;
+            for (var k in gameMap.cells) {
+              if (gameMap.cells[k].owner === owner) { anchorKey = k; break; }
+            }
+            if (anchorKey) floatBadge(playWrapper, playSvg, anchorKey, '+' + bonus);
+          }
+          renderMap(playSvg, gameMap, true, { onCellTap: onCellTap });
+          renderHud(playHud, gameMap, currentPlayer);
+        }
+        setTimeout(advancePlayer, 700);
+      }
+
+      function advancePlayer() {
+        /* Step forward, skipping eliminated players. */
+        var tries = 0;
+        do {
+          currentPlayer = (currentPlayer + 1) % NUM_PLAYERS;
+          tries++;
+        } while (!ownerHasTerritory(gameMap, currentPlayer) && tries < NUM_PLAYERS * 2);
+
+        if (checkGameOver()) { busy = false; return; }
+
+        renderHud(playHud, gameMap, currentPlayer);
+        updateStatus();
+
+        if (currentPlayer === 0) {
+          busy = false;
+        } else {
+          setTimeout(function () { runAITurn(currentPlayer); }, 120);
+        }
+      }
+
+      /* ===========================
+         AI
+         =========================== */
+      function runAITurn(owner) {
+        if (gameOver) { busy = false; return; }
+        var attack = chooseAIAttack(owner);
+        if (!attack) {
+          /* No good attack → end AI turn */
+          reinforceAndAdvanceForAI();
+          return;
+        }
+        /* Execute attack with visible pause + dice animation */
+        var result = resolveBattle(gameMap, attack.from, attack.to);
+        showDice(playSvg, attack.from, result.attackerRolls);
+        showDice(playSvg, attack.to, result.defenderRolls);
+        floatBadge(playWrapper, playSvg,
+                   result.won ? attack.to : attack.from,
+                   result.attackerTotal + ' vs ' + result.defenderTotal);
+        setTimeout(function () { hideDice(playSvg); }, 350);
+        setTimeout(function () {
+          renderMap(playSvg, gameMap, true, { onCellTap: onCellTap });
+          renderHud(playHud, gameMap, currentPlayer);
+          if (checkGameOver()) { busy = false; return; }
+          /* Continue attacking */
+          setTimeout(function () { runAITurn(owner); }, 80);
+        }, 500);
+      }
+
+      function reinforceAndAdvanceForAI() {
+        var owner = currentPlayer;
+        if (ownerHasTerritory(gameMap, owner)) {
+          var bonus = largestClusterSize(gameMap, owner);
+          if (bonus > 0) {
+            distributeReinforcements(gameMap, owner, bonus);
+            var anchorKey = null;
+            for (var k in gameMap.cells) {
+              if (gameMap.cells[k].owner === owner) { anchorKey = k; break; }
+            }
+            if (anchorKey) floatBadge(playWrapper, playSvg, anchorKey, '+' + bonus);
+          }
+          renderMap(playSvg, gameMap, true, { onCellTap: onCellTap });
+          renderHud(playHud, gameMap, currentPlayer);
+        }
+        setTimeout(advancePlayer, 250);
+      }
+
+      /* Greedy policy: pick highest-scoring attack with positive expected value. */
+      function chooseAIAttack(owner) {
+        var best = null;
+        var bestScore = 0;
+        for (var k in gameMap.cells) {
+          var cell = gameMap.cells[k];
+          if (cell.owner !== owner || cell.armies < 2) continue;
+          var nbrs = neighborsOf(cell.col, cell.row);
+          for (var i = 0; i < nbrs.length; i++) {
+            var nk = cellKey(nbrs[i].col, nbrs[i].row);
+            var nc = gameMap.cells[nk];
+            if (!nc || nc.owner === owner) continue;
+            var score = (cell.armies - 1 - nc.armies) * 2;
+            /* Prefer attacking the human slightly */
+            if (nc.owner === 0) score += 1;
+            /* Avoid suicidal attacks */
+            if (cell.armies - 1 < nc.armies) score -= 3;
+            if (score > bestScore) {
+              bestScore = score;
+              best = { from: k, to: nk };
+            }
+          }
+        }
+        return best;
+      }
+
+      /* ===========================
+         Scoreboard UI
+         =========================== */
+      function updateScoreboardUI() {
+        scoreWinsEl.textContent = persistent.wins;
+        scoreLossesEl.textContent = persistent.losses;
+      }
+
+      /* ===========================
+         Dev tests (?test=1)
+         =========================== */
+      function runTests() {
+        var pass = 0, fail = 0;
+        function assert(cond, msg) {
+          if (cond) { pass++; }
+          else { fail++; console.error('FAIL:', msg); }
+        }
+
+        /* neighborsOf returns 6 unique coords */
+        var nbrs = neighborsOf(3, 3);
+        assert(nbrs.length === 6, 'neighborsOf returns 6');
+        var seen = {};
+        for (var i = 0; i < nbrs.length; i++) seen[cellKey(nbrs[i].col, nbrs[i].row)] = true;
+        assert(Object.keys(seen).length === 6, 'neighbors unique');
+
+        /* Handcrafted 3-cell row: cluster size = 3 */
+        var m = { cells: {
+          '0,0': { col: 0, row: 0, owner: 0, armies: 1 },
+          '1,0': { col: 1, row: 0, owner: 0, armies: 1 },
+          '2,0': { col: 2, row: 0, owner: 0, armies: 1 },
+          '4,0': { col: 4, row: 0, owner: 0, armies: 1 }  /* disconnected */
+        } };
+        assert(largestClusterSize(m, 0) === 3, 'largest cluster excludes disconnected');
+
+        /* Battle: attacker with overwhelming force should usually win; run many */
+        var wins = 0;
+        for (var t = 0; t < 100; t++) {
+          var bm = { cells: {
+            '0,0': { col: 0, row: 0, owner: 0, armies: 8 },
+            '1,0': { col: 1, row: 0, owner: 1, armies: 1 }
+          } };
+          var res = resolveBattle(bm, '0,0', '1,0');
+          if (res.won) wins++;
+          assert(bm.cells['0,0'].armies >= 1, 'attacker leaves >=1 behind');
+        }
+        assert(wins > 70, 'strong attacker wins most (got ' + wins + '/100)');
+
+        /* Map generation: equal country count */
+        var gm = generateMap();
+        var counts = [0,0,0,0,0];
+        for (var k in gm.cells) counts[gm.cells[k].owner]++;
+        var equal = counts.every(function (c) { return c === counts[0]; });
+        assert(equal, 'equal countries per player (' + counts.join(',') + ')');
+
+        /* Each owner has same total starting armies */
+        var totals = [0,0,0,0,0];
+        for (var k2 in gm.cells) totals[gm.cells[k2].owner] += gm.cells[k2].armies;
+        /* Due to cap at 8, totals may be slightly <target but should match each other */
+        var tequal = totals.every(function (t2) { return Math.abs(t2 - totals[0]) <= 2; });
+        assert(tequal, 'roughly equal total armies (' + totals.join(',') + ')');
+
+        console.log('Strategery tests: ' + pass + ' pass, ' + fail + ' fail');
+      }
+
+      /* ===========================
+         Init
+         =========================== */
+      loadState();
+      updateScoreboardUI();
+      showSetup();
+
+      if (new URLSearchParams(location.search).get('test')) {
+        runTests();
+      }
+    </script>
+  </body>
+</html>
