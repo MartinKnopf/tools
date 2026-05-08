@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#574747" />
+    <title>Stickies</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="favicon.svg" />
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css" />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      /* Body scrolls when notes extend past the viewport */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        overscroll-behavior: none;
+      }
+
+      .workspace {
+        position: relative;
+        min-height: 100vh;
+        min-width: 100vw;
+        background: var(--background);
+      }
+
+      /* Floating menu bar — drag swatches into the workspace to spawn notes */
+      .menu {
+        position: fixed;
+        bottom: var(--space-4);
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+        z-index: 10000;
+      }
+
+      .menu .hint {
+        font-size: 0.8rem;
+        color: var(--muted-foreground);
+        white-space: nowrap;
+      }
+
+      .menu a.back {
+        color: var(--muted-foreground);
+        text-decoration: none;
+        font-size: 1.1rem;
+        line-height: 1;
+      }
+
+      .swatches {
+        display: flex;
+        gap: var(--space-2);
+      }
+
+      .swatch {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        margin: 0;
+        border-radius: 50%;
+        border: 2px solid rgba(0, 0, 0, 0.25);
+        cursor: grab;
+        touch-action: none;
+      }
+
+      .swatch:active {
+        cursor: grabbing;
+      }
+
+      .menu-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--foreground);
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        margin: 0;
+        border-radius: 50%;
+        cursor: pointer;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .menu-btn svg {
+        display: block;
+      }
+
+      .menu-btn:hover {
+        background: var(--background);
+      }
+
+      /* Ghost note that follows the pointer while dragging from a swatch */
+      .ghost {
+        position: fixed;
+        width: 140px;
+        height: 100px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        opacity: 0.7;
+        pointer-events: none;
+        z-index: 20000;
+      }
+
+      /* Sticky note */
+      .sticky {
+        position: absolute;
+        min-width: 80px;
+        min-height: 60px;
+        padding: 10px;
+        color: #1a1a1a;
+        border-radius: 4px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        box-sizing: border-box;
+      }
+
+      /* Custom resize handle — replaces native CSS resize so we can snap to a step */
+      .resize-handle {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 16px;
+        height: 16px;
+        cursor: nwse-resize;
+        touch-action: none;
+        background:
+          linear-gradient(
+            135deg,
+            transparent 0 6px,
+            rgba(0, 0, 0, 0.35) 6px 8px,
+            transparent 8px 11px,
+            rgba(0, 0, 0, 0.35) 11px 13px,
+            transparent 13px
+          );
+      }
+
+      .sticky:active {
+        cursor: grabbing;
+      }
+
+      .sticky.selected {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+
+      /* Inner text container — clamps when too tall, becomes scrollable when editing */
+      .sticky-text {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        font-size: 14px;
+        line-height: 1.4;
+        font-family: inherit;
+        text-align: left;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+
+      .sticky-text.editing {
+        display: block;
+        overflow: auto;
+        cursor: text;
+        user-select: text;
+        outline: none;
+      }
+
+      .sticky-text.placeholder {
+        color: rgba(0, 0, 0, 0.4);
+      }
+
+      /* Marquee selection rectangle */
+      .marquee {
+        position: absolute;
+        border: 1px dashed var(--primary, #6aa);
+        background: rgba(100, 150, 255, 0.12);
+        pointer-events: none;
+        z-index: 9000;
+      }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <div class="workspace" id="workspace"></div>
+
+    <div class="menu" id="menu">
+      <a class="back" href="../index.html" title="Back">←</a>
+      <span class="hint">Drag to create</span>
+      <div class="swatches" id="swatches"></div>
+      <button class="menu-btn" id="exportBtn" title="Export board" aria-label="Export board">
+        <!-- Document with downward arrow — "save to file" -->
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            d="M6 3h7l5 5v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M13 3v5h5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M12 11v6m-3-3 3 3 3-3"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+      <button class="menu-btn" id="importBtn" title="Import board" aria-label="Import board">
+        <!-- Document with upward arrow — "load from file" -->
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            d="M6 3h7l5 5v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M13 3v5h5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M12 17v-6m-3 3 3-3 3 3"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+      <input type="file" id="importInput" accept="application/json,.json" hidden />
+    </div>
+
+    <script>
+      /* === Config === */
+      var STORAGE_KEY = "stickies:notes";
+      var Z_KEY = "stickies:nextZ";
+      var COLORS = [
+        "#fff59d", // yellow
+        "#ffcc80", // orange
+        "#f48fb1", // pink
+        "#ce93d8", // purple
+        "#90caf9", // blue
+        "#a5d6a7", // green
+      ];
+      var DEFAULT_W = 160;
+      var DEFAULT_H = 120;
+      var RESIZE_STEP = 10; // notes resize in 10px increments
+      var MIN_W = 80;
+      var MIN_H = 60;
+
+      /* === State === */
+      /* notes: { id, x, y, w, h, color, text, z } */
+      var notes = [];
+      var nextZ = 1;
+      var selectedIds = new Set(); // multi-selection
+      var editingId = null;
+      var clipboard = null; // array of note snapshots (id stripped on paste)
+
+      var workspace = document.getElementById("workspace");
+      var swatchesEl = document.getElementById("swatches");
+      var menuEl = document.getElementById("menu");
+
+      /* === Persistence === */
+      function load() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) notes = JSON.parse(raw);
+          var z = parseInt(localStorage.getItem(Z_KEY), 10);
+          if (!isNaN(z) && z > 0) nextZ = z;
+        } catch (e) {
+          notes = [];
+        }
+      }
+
+      var saveTimer = null;
+      function save() {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+          localStorage.setItem(Z_KEY, String(nextZ));
+        }, 100);
+      }
+
+      /* === Rendering === */
+      function render() {
+        workspace.innerHTML = "";
+        for (var i = 0; i < notes.length; i++) {
+          workspace.appendChild(buildSticky(notes[i]));
+        }
+        updateWorkspaceSize();
+      }
+
+      /* Grow the workspace so notes outside the viewport become reachable via scroll */
+      function updateWorkspaceSize() {
+        var maxX = window.innerWidth;
+        var maxY = window.innerHeight;
+        for (var i = 0; i < notes.length; i++) {
+          var n = notes[i];
+          if (n.x + n.w + 40 > maxX) maxX = n.x + n.w + 40;
+          if (n.y + n.h + 120 > maxY) maxY = n.y + n.h + 120;
+        }
+        workspace.style.width = maxX + "px";
+        workspace.style.height = maxY + "px";
+      }
+
+      function buildSticky(note) {
+        var el = document.createElement("div");
+        el.className = "sticky";
+        el.dataset.id = note.id;
+        applyStyle(el, note);
+
+        var text = document.createElement("div");
+        text.className = "sticky-text";
+        setText(text, note.text);
+        el.appendChild(text);
+
+        var handle = document.createElement("div");
+        handle.className = "resize-handle";
+        el.appendChild(handle);
+
+        attachStickyHandlers(el, note);
+        attachResizeHandle(handle, el, note);
+
+        if (selectedIds.has(note.id)) el.classList.add("selected");
+
+        // Update line clamp once it's in the DOM
+        requestAnimationFrame(function () {
+          updateClamp(el);
+        });
+
+        return el;
+      }
+
+      function applyStyle(el, note) {
+        el.style.left = note.x + "px";
+        el.style.top = note.y + "px";
+        el.style.width = note.w + "px";
+        el.style.height = note.h + "px";
+        el.style.background = note.color;
+        el.style.zIndex = note.z;
+      }
+
+      function setText(textEl, value) {
+        if (!value) {
+          textEl.textContent = "Double-click to edit";
+          textEl.classList.add("placeholder");
+        } else {
+          textEl.textContent = value;
+          textEl.classList.remove("placeholder");
+        }
+      }
+
+      /* Compute how many lines fit in the current note size and apply line-clamp.
+         Line-clamp is the cleanest way to get multi-line text + "..." overflow. */
+      function updateClamp(el) {
+        var text = el.querySelector(".sticky-text");
+        if (!text || text.classList.contains("editing")) return;
+        var cs = getComputedStyle(text);
+        var lh = parseFloat(cs.lineHeight);
+        if (isNaN(lh)) lh = parseFloat(cs.fontSize) * 1.4;
+        // Use the text container's own laid-out height, falling back to the
+        // sticky's content box if the text node hasn't measured yet.
+        var avail = text.clientHeight;
+        if (!avail) {
+          var stickyCS = getComputedStyle(el);
+          avail =
+            el.clientHeight -
+            parseFloat(stickyCS.paddingTop) -
+            parseFloat(stickyCS.paddingBottom);
+        }
+        var lines = Math.max(1, Math.floor(avail / lh));
+        text.style.setProperty("-webkit-line-clamp", String(lines));
+        text.style.setProperty("line-clamp", String(lines));
+      }
+
+      /* === Note operations === */
+      function addNote(x, y, color) {
+        var id = "n_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+        var note = {
+          id: id,
+          x: Math.max(0, x),
+          y: Math.max(0, y),
+          w: DEFAULT_W,
+          h: DEFAULT_H,
+          color: color,
+          text: "",
+          z: nextZ++,
+        };
+        notes.push(note);
+        var el = buildSticky(note);
+        workspace.appendChild(el);
+        selectNote(note.id);
+        updateWorkspaceSize();
+        save();
+        return note;
+      }
+
+      function getNote(id) {
+        for (var i = 0; i < notes.length; i++) {
+          if (notes[i].id === id) return notes[i];
+        }
+        return null;
+      }
+
+      function getEl(id) {
+        return workspace.querySelector('.sticky[data-id="' + id + '"]');
+      }
+
+      /* Selection helpers — selection is now a set of ids. */
+      function clearSelection() {
+        selectedIds.forEach(function (id) {
+          var el = getEl(id);
+          if (el) el.classList.remove("selected");
+        });
+        selectedIds.clear();
+      }
+
+      function addToSelection(id) {
+        if (selectedIds.has(id)) return;
+        selectedIds.add(id);
+        var el = getEl(id);
+        if (el) el.classList.add("selected");
+      }
+
+      function removeFromSelection(id) {
+        if (!selectedIds.has(id)) return;
+        selectedIds.delete(id);
+        var el = getEl(id);
+        if (el) el.classList.remove("selected");
+      }
+
+      /* Single-select + bump z (the "click without shift" semantic). */
+      function selectNote(id) {
+        clearSelection();
+        if (!id) return;
+        var note = getNote(id);
+        var el = getEl(id);
+        if (!note || !el) return;
+        note.z = nextZ++;
+        el.style.zIndex = note.z;
+        addToSelection(id);
+        save();
+      }
+
+      function deleteNote(id) {
+        var idx = -1;
+        for (var i = 0; i < notes.length; i++) {
+          if (notes[i].id === id) {
+            idx = i;
+            break;
+          }
+        }
+        if (idx < 0) return;
+        notes.splice(idx, 1);
+        var el = getEl(id);
+        if (el) el.remove();
+        selectedIds.delete(id);
+        if (editingId === id) editingId = null;
+        updateWorkspaceSize();
+        save();
+      }
+
+      /* === Sticky interaction === */
+      function attachStickyHandlers(el, note) {
+        var text = el.querySelector(".sticky-text");
+
+        /* Pointer down: select + start drag (unless on resize handle or editing) */
+        el.addEventListener("pointerdown", function (e) {
+          if (editingId === note.id) return; // let editing field receive events
+          if (e.target.classList.contains("resize-handle")) return; // handle owns this gesture
+
+          if (e.shiftKey) {
+            // Toggle membership without bumping z, so relative stacking is preserved.
+            if (selectedIds.has(note.id)) {
+              removeFromSelection(note.id);
+            } else {
+              addToSelection(note.id);
+            }
+            e.preventDefault();
+            return; // shift-click never starts a drag
+          }
+
+          // Plain click: keep an existing multi-selection (so we can drag the group),
+          // otherwise replace it with just this note and bump its z to the top.
+          if (!selectedIds.has(note.id)) {
+            clearSelection();
+            note.z = nextZ++;
+            el.style.zIndex = note.z;
+            addToSelection(note.id);
+            save();
+          }
+
+          e.preventDefault();
+          startDrag(el, note, e);
+        });
+
+        /* Double-click: enter inline edit mode */
+        el.addEventListener("dblclick", function (e) {
+          if (e.target.classList.contains("resize-handle")) return;
+          e.stopPropagation();
+          beginEdit(el, note);
+        });
+      }
+
+      /* Custom resize: pointer drag on the corner handle, size snapped to RESIZE_STEP */
+      function attachResizeHandle(handle, el, note) {
+        handle.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          selectNote(note.id);
+
+          var startX = e.clientX;
+          var startY = e.clientY;
+          var origW = note.w;
+          var origH = note.h;
+          try {
+            handle.setPointerCapture(e.pointerId);
+          } catch (err) {}
+
+          function move(ev) {
+            var dw = ev.clientX - startX;
+            var dh = ev.clientY - startY;
+            // Snap target dimensions to the nearest step, clamped to a sensible minimum.
+            var w = Math.max(
+              MIN_W,
+              Math.round((origW + dw) / RESIZE_STEP) * RESIZE_STEP,
+            );
+            var h = Math.max(
+              MIN_H,
+              Math.round((origH + dh) / RESIZE_STEP) * RESIZE_STEP,
+            );
+            if (w !== note.w || h !== note.h) {
+              note.w = w;
+              note.h = h;
+              el.style.width = w + "px";
+              el.style.height = h + "px";
+              updateClamp(el);
+              updateWorkspaceSize();
+            }
+          }
+
+          function up(ev) {
+            handle.removeEventListener("pointermove", move);
+            handle.removeEventListener("pointerup", up);
+            handle.removeEventListener("pointercancel", up);
+            try {
+              handle.releasePointerCapture(ev.pointerId);
+            } catch (err) {}
+            save();
+          }
+
+          handle.addEventListener("pointermove", move);
+          handle.addEventListener("pointerup", up);
+          handle.addEventListener("pointercancel", up);
+        });
+      }
+
+      function startDrag(el, note, downEvent) {
+        var startX = downEvent.clientX;
+        var startY = downEvent.clientY;
+
+        // Build the move set: every selected note moves together as a group.
+        // If the clicked note isn't in the selection, it drags alone.
+        var movers = [];
+        var ids = selectedIds.has(note.id) ? selectedIds : new Set([note.id]);
+        ids.forEach(function (id) {
+          var n = getNote(id);
+          var ne = getEl(id);
+          if (n && ne) movers.push({ note: n, el: ne, ox: n.x, oy: n.y });
+        });
+
+        // Group lower bounds — clamp the delta so the leftmost/topmost note can't go negative.
+        var minOx = Infinity,
+          minOy = Infinity;
+        for (var i = 0; i < movers.length; i++) {
+          if (movers[i].ox < minOx) minOx = movers[i].ox;
+          if (movers[i].oy < minOy) minOy = movers[i].oy;
+        }
+
+        try {
+          el.setPointerCapture(downEvent.pointerId);
+        } catch (e) {}
+
+        function move(e) {
+          var dx = e.clientX - startX;
+          var dy = e.clientY - startY;
+          if (minOx + dx < 0) dx = -minOx;
+          if (minOy + dy < 0) dy = -minOy;
+          for (var i = 0; i < movers.length; i++) {
+            var m = movers[i];
+            m.note.x = m.ox + dx;
+            m.note.y = m.oy + dy;
+            m.el.style.left = m.note.x + "px";
+            m.el.style.top = m.note.y + "px";
+          }
+          updateWorkspaceSize();
+        }
+
+        function up(e) {
+          el.removeEventListener("pointermove", move);
+          el.removeEventListener("pointerup", up);
+          el.removeEventListener("pointercancel", up);
+          try {
+            el.releasePointerCapture(downEvent.pointerId);
+          } catch (e) {}
+          updateWorkspaceSize();
+          save();
+        }
+
+        el.addEventListener("pointermove", move);
+        el.addEventListener("pointerup", up);
+        el.addEventListener("pointercancel", up);
+      }
+
+      /* === Inline editing === */
+      function beginEdit(el, note) {
+        if (editingId === note.id) return;
+        editingId = note.id;
+        var text = el.querySelector(".sticky-text");
+        text.classList.add("editing");
+        text.classList.remove("placeholder");
+        text.contentEditable = "true";
+        text.style.webkitLineClamp = "";
+        text.textContent = note.text || "";
+        el.style.cursor = "text";
+
+        // Focus + select all
+        text.focus();
+        var range = document.createRange();
+        range.selectNodeContents(text);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        function finish() {
+          text.removeEventListener("blur", finish);
+          text.removeEventListener("keydown", keyHandler);
+          // innerText preserves visible linebreaks (<br>, block boundaries);
+          // textContent would silently drop them.
+          note.text = text.innerText || "";
+          text.contentEditable = "false";
+          text.classList.remove("editing");
+          el.style.cursor = "";
+          setText(text, note.text);
+          editingId = null;
+          updateClamp(el);
+          save();
+        }
+
+        function keyHandler(e) {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            text.blur();
+          }
+        }
+
+        text.addEventListener("blur", finish);
+        text.addEventListener("keydown", keyHandler);
+      }
+
+      /* === Workspace background — click clears, drag draws a marquee === */
+      workspace.addEventListener("pointerdown", function (e) {
+        if (e.target !== workspace) return; // notes/handles handle themselves
+        if (editingId) return;
+
+        var shift = e.shiftKey;
+        if (!shift) clearSelection();
+
+        // Document-space coordinates so the marquee tracks correctly even when
+        // the page is scrolled (workspace is position: relative, so its 0,0
+        // matches document 0,0).
+        var startX = e.clientX + window.scrollX;
+        var startY = e.clientY + window.scrollY;
+
+        var box = document.createElement("div");
+        box.className = "marquee";
+        box.style.left = startX + "px";
+        box.style.top = startY + "px";
+        box.style.width = "0px";
+        box.style.height = "0px";
+        workspace.appendChild(box);
+
+        var moved = false;
+        var curX = startX,
+          curY = startY;
+
+        function move(ev) {
+          curX = ev.clientX + window.scrollX;
+          curY = ev.clientY + window.scrollY;
+          var minX = Math.min(startX, curX);
+          var minY = Math.min(startY, curY);
+          var w = Math.abs(curX - startX);
+          var h = Math.abs(curY - startY);
+          box.style.left = minX + "px";
+          box.style.top = minY + "px";
+          box.style.width = w + "px";
+          box.style.height = h + "px";
+          if (w > 2 || h > 2) moved = true;
+        }
+
+        function up(ev) {
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", up);
+          document.removeEventListener("pointercancel", up);
+          box.remove();
+          if (!moved) return; // a plain background click — selection already cleared above
+
+          var minX = Math.min(startX, curX);
+          var minY = Math.min(startY, curY);
+          var maxX = Math.max(startX, curX);
+          var maxY = Math.max(startY, curY);
+
+          // Only fully-enclosed notes count, per spec.
+          for (var i = 0; i < notes.length; i++) {
+            var n = notes[i];
+            if (
+              n.x >= minX &&
+              n.y >= minY &&
+              n.x + n.w <= maxX &&
+              n.y + n.h <= maxY
+            ) {
+              addToSelection(n.id);
+            }
+          }
+        }
+
+        document.addEventListener("pointermove", move);
+        document.addEventListener("pointerup", up);
+        document.addEventListener("pointercancel", up);
+      });
+
+      /* === Keyboard: delete selected note with Del / Backspace === */
+      document.addEventListener("keydown", function (e) {
+        if (editingId) return; // don't hijack typing
+        // Don't fire on form fields elsewhere
+        var t = e.target;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) {
+          return;
+        }
+        if (
+          (e.key === "Delete" || e.key === "Backspace") &&
+          selectedIds.size > 0
+        ) {
+          e.preventDefault();
+          // Snapshot the ids since deleteNote mutates the set during iteration.
+          Array.from(selectedIds).forEach(deleteNote);
+          return;
+        }
+
+        var mod = e.metaKey || e.ctrlKey;
+        // Copy: snapshot all selected notes
+        if (
+          mod &&
+          (e.key === "c" || e.key === "C") &&
+          selectedIds.size > 0
+        ) {
+          clipboard = [];
+          selectedIds.forEach(function (id) {
+            var src = getNote(id);
+            if (src) {
+              clipboard.push({
+                x: src.x,
+                y: src.y,
+                w: src.w,
+                h: src.h,
+                color: src.color,
+                text: src.text,
+              });
+            }
+          });
+          return;
+        }
+
+        // Paste: spawn copies, each offset 20px down-right from its original.
+        // Subsequent pastes cascade further by mutating the clipboard origin.
+        if (
+          mod &&
+          (e.key === "v" || e.key === "V") &&
+          clipboard &&
+          clipboard.length
+        ) {
+          e.preventDefault();
+          var newIds = [];
+          for (var i = 0; i < clipboard.length; i++) {
+            var c = clipboard[i];
+            var nx = c.x + 20;
+            var ny = c.y + 20;
+            var note = addNote(nx, ny, c.color);
+            note.w = c.w;
+            note.h = c.h;
+            note.text = c.text;
+            var el = getEl(note.id);
+            if (el) {
+              el.style.width = note.w + "px";
+              el.style.height = note.h + "px";
+              setText(el.querySelector(".sticky-text"), note.text);
+              updateClamp(el);
+            }
+            c.x = nx;
+            c.y = ny;
+            newIds.push(note.id);
+          }
+          // Select the freshly pasted notes as a group.
+          clearSelection();
+          newIds.forEach(addToSelection);
+          updateWorkspaceSize();
+          save();
+        }
+      });
+
+      /* === Build swatches and wire drag-from-menu === */
+      function buildSwatches() {
+        for (var i = 0; i < COLORS.length; i++) {
+          var c = COLORS[i];
+          var btn = document.createElement("button");
+          btn.className = "swatch";
+          btn.dataset.color = c;
+          btn.style.background = c;
+          btn.title = "Drag to create note";
+          attachSwatchDrag(btn, c);
+          swatchesEl.appendChild(btn);
+        }
+      }
+
+      function attachSwatchDrag(btn, color) {
+        btn.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+
+          var ghost = document.createElement("div");
+          ghost.className = "ghost";
+          ghost.style.background = color;
+          // Center under pointer
+          var gw = 140,
+            gh = 100;
+          ghost.style.left = e.clientX - gw / 2 + "px";
+          ghost.style.top = e.clientY - gh / 2 + "px";
+          document.body.appendChild(ghost);
+
+          function move(ev) {
+            ghost.style.left = ev.clientX - gw / 2 + "px";
+            ghost.style.top = ev.clientY - gh / 2 + "px";
+          }
+
+          function up(ev) {
+            document.removeEventListener("pointermove", move);
+            document.removeEventListener("pointerup", up);
+            document.removeEventListener("pointercancel", up);
+            ghost.remove();
+
+            // Don't create if released over the menu (cancel gesture)
+            if (menuEl.contains(ev.target)) return;
+
+            // Convert viewport coords to document coords so the drop lands
+            // where the user released, even if the page is scrolled.
+            var x = ev.clientX + window.scrollX - DEFAULT_W / 2;
+            var y = ev.clientY + window.scrollY - DEFAULT_H / 2;
+            addNote(x, y, color);
+          }
+
+          document.addEventListener("pointermove", move);
+          document.addEventListener("pointerup", up);
+          document.addEventListener("pointercancel", up);
+        });
+      }
+
+      /* === Init === */
+      load();
+      buildSwatches();
+      render();
+
+      window.addEventListener("resize", updateWorkspaceSize);
+
+      /* === Import / Export === */
+      function exportBoard() {
+        var payload = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          nextZ: nextZ,
+          notes: notes,
+        };
+        var blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        var stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+        a.href = url;
+        a.download = "stickies-" + stamp + ".json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        // Revoke after the click has been handled by the browser
+        setTimeout(function () {
+          URL.revokeObjectURL(url);
+        }, 1000);
+      }
+
+      function importBoardFromFile(file) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var data = JSON.parse(reader.result);
+            // Accept either a wrapper object or a bare array of notes
+            var imported = Array.isArray(data) ? data : data.notes;
+            if (!Array.isArray(imported)) {
+              throw new Error("No notes array found in file");
+            }
+            // Basic shape validation — skip anything malformed
+            var clean = [];
+            var maxZ = 0;
+            for (var i = 0; i < imported.length; i++) {
+              var n = imported[i];
+              if (!n || typeof n !== "object") continue;
+              var note = {
+                id:
+                  typeof n.id === "string" && n.id
+                    ? n.id
+                    : "n_" + Date.now() + "_" + i,
+                x: Number(n.x) || 0,
+                y: Number(n.y) || 0,
+                w: Math.max(MIN_W, Number(n.w) || DEFAULT_W),
+                h: Math.max(MIN_H, Number(n.h) || DEFAULT_H),
+                color: typeof n.color === "string" ? n.color : COLORS[0],
+                text: typeof n.text === "string" ? n.text : "",
+                z: Number(n.z) || 1,
+              };
+              if (note.z > maxZ) maxZ = note.z;
+              clean.push(note);
+            }
+            if (!confirm(
+              "Import " + clean.length + " notes? This replaces the current board."
+            )) {
+              return;
+            }
+            notes = clean;
+            nextZ = (Number(data.nextZ) || maxZ || 1) + 1;
+            selectedIds.clear();
+            editingId = null;
+            render();
+            save();
+          } catch (err) {
+            alert("Import failed: " + err.message);
+          }
+        };
+        reader.onerror = function () {
+          alert("Could not read file");
+        };
+        reader.readAsText(file);
+      }
+
+      document.getElementById("exportBtn").addEventListener("click", exportBoard);
+      var importInput = document.getElementById("importInput");
+      document.getElementById("importBtn").addEventListener("click", function () {
+        importInput.value = ""; // allow re-importing the same file
+        importInput.click();
+      });
+      importInput.addEventListener("change", function () {
+        if (importInput.files && importInput.files[0]) {
+          importBoardFromFile(importInput.files[0]);
+        }
+      });
+
+      /* Register service worker (consistent with other tools) */
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("../sw.js").catch(function () {});
+      }
+    </script>
+  </body>
+</html>

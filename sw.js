@@ -1,5 +1,5 @@
 // Service Worker for Static Tools PWA
-const CACHE_NAME = 'static-tools-v25';
+const CACHE_NAME = 'static-tools-v26';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -59,6 +59,8 @@ const PRECACHE_URLS = [
   '/tools/cut/index.html',
 
   '/tools/note/index.html',
+
+  '/tools/stickies/index.html',
 ];
 
 // Install event - cache core assets
