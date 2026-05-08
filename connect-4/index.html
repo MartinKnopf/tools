@@ -57,6 +57,24 @@
         margin: 0 auto;
       }
 
+      /* Game-view header: back button on the left, new game on the right */
+      .game-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 460px;
+        margin: 0 auto var(--space-3);
+      }
+      .game-header button { width: auto; }
+
+      /* Dialog content padding (oat sets dialog padding to 0) */
+      #confirmDialog {
+        padding: var(--space-4);
+      }
+      #confirmDialog p {
+        margin-top: 0;
+      }
+
       /* Board: horizontal flex row of 7 column containers */
       .c4-board {
         display: flex;
@@ -165,51 +183,68 @@
   </head>
   <body data-theme="dark">
     <main class="container text-center">
-      <h1>Connect 4</h1>
-      <p class="text-light">Connect four in a row — but filled rows vanish!</p>
+      <!-- View: Main menu -->
+      <section id="viewMenu">
+        <h1>Connect 4</h1>
 
-      <!-- Mode selector -->
-      <div class="flex gap-md justify-center mb-4 mode-selector">
-        <button id="btnVsBot" class="active">vs Bot</button>
-        <button id="btnVsHuman" class="outline">vs Human</button>
-      </div>
-
-      <!-- Difficulty selector (bot mode only) -->
-      <div class="flex gap-md justify-center mb-2 difficulty-selector" id="difficultySelector">
-        <button id="btnEasy" class="outline">Easy</button>
-        <button id="btnHard" class="active">Hard</button>
-      </div>
-
-      <!-- Scoreboard -->
-      <div class="scoreboard">
-        <div class="score-item">
-          <div class="score-label" id="labelRed">Red (You)</div>
-          <div class="score-value red" id="scoreRed">0</div>
+        <!-- Scoreboard (only shown in the main menu) -->
+        <div class="scoreboard">
+          <div class="score-item">
+            <div class="score-label">Red</div>
+            <div class="score-value red" id="scoreRed">0</div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Draw</div>
+            <div class="score-value draw" id="scoreDraw">0</div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Yellow</div>
+            <div class="score-value yellow" id="scoreYellow">0</div>
+          </div>
         </div>
-        <div class="score-item">
-          <div class="score-label">Draw</div>
-          <div class="score-value draw" id="scoreDraw">0</div>
+
+        <div class="menu-actions flex gap-md justify-center flex-wrap" style="margin-top: var(--space-5);">
+          <button id="btnVsBot">vs Bot</button>
+          <button id="btnVsHuman">vs Human</button>
         </div>
-        <div class="score-item">
-          <div class="score-label" id="labelYellow">Yellow (Bot)</div>
-          <div class="score-value yellow" id="scoreYellow">0</div>
+        <div class="menu-actions flex gap-md justify-center flex-wrap" style="margin-top: var(--space-3);">
+          <button id="btnResetScores" class="outline">Reset Scores</button>
         </div>
-      </div>
+      </section>
 
-      <!-- Status -->
-      <div class="status" id="status">Your turn (Red)</div>
+      <!-- View: Difficulty selection (bot only) -->
+      <section id="viewDifficulty" class="view-hidden">
+        <h2>Choose difficulty</h2>
+        <div class="menu-actions flex gap-md justify-center flex-wrap" style="margin-top: var(--space-4);">
+          <button id="btnEasy">Easy</button>
+          <button id="btnHard">Hard</button>
+        </div>
+        <div class="menu-actions flex gap-md justify-center flex-wrap" style="margin-top: var(--space-3);">
+          <button id="btnDifficultyBack" class="outline">Back</button>
+        </div>
+      </section>
 
-      <!-- Board -->
-      <div class="c4-wrapper">
-        <div class="c4-board" id="board"></div>
-      </div>
+      <!-- View: Game board -->
+      <section id="viewGame" class="view-hidden">
+        <div class="game-header">
+          <button id="btnBack" class="outline">← Back</button>
+          <button id="btnNewGame" class="outline">New Game</button>
+        </div>
 
-      <!-- Actions -->
-      <div class="flex gap-md justify-center flex-wrap">
-        <button id="btnNewGame">New Game</button>
-        <button id="btnResetScores" class="outline" data-variant="secondary">Reset Scores</button>
-      </div>
+        <div class="c4-wrapper">
+          <div class="c4-board" id="board"></div>
+        </div>
+      </section>
     </main>
+
+    <!-- Back-to-menu confirmation dialog -->
+    <dialog id="confirmDialog">
+      <p>End the current game and return to the main menu?</p>
+      <div class="dialog-actions">
+        <button id="btnConfirmBack">End Game</button>
+        <button id="btnCancelBack" class="outline">Keep Playing</button>
+      </div>
+    </dialog>
 
     <script>
       /* ===========================
@@ -231,24 +266,34 @@
       var difficulty = 'hard';     // 'easy' or 'hard'
       var scores = { red: 0, yellow: 0, draw: 0 };
       var busy = false;            // true during animations / bot thinking
+      /* Session token: bumped whenever a game is started or abandoned, so
+         pending setTimeout callbacks from a previous session can detect
+         that the world has moved on and bail out. */
+      var sessionId = 0;
 
       /* ===========================
          DOM references
          =========================== */
       var boardEl = document.getElementById('board');
-      var statusEl = document.getElementById('status');
+      /* Status messages are no-ops since the status row was removed; win/draw is conveyed via piece pulse animation */
+      var statusEl = document.createElement('div');
       var scoreRedEl = document.getElementById('scoreRed');
       var scoreYellowEl = document.getElementById('scoreYellow');
       var scoreDrawEl = document.getElementById('scoreDraw');
-      var labelRedEl = document.getElementById('labelRed');
-      var labelYellowEl = document.getElementById('labelYellow');
       var btnVsBot = document.getElementById('btnVsBot');
       var btnVsHuman = document.getElementById('btnVsHuman');
-      var difficultySelector = document.getElementById('difficultySelector');
       var btnEasy = document.getElementById('btnEasy');
       var btnHard = document.getElementById('btnHard');
+      var btnDifficultyBack = document.getElementById('btnDifficultyBack');
       var btnNewGame = document.getElementById('btnNewGame');
       var btnResetScores = document.getElementById('btnResetScores');
+      var btnBack = document.getElementById('btnBack');
+      var viewMenu = document.getElementById('viewMenu');
+      var viewDifficulty = document.getElementById('viewDifficulty');
+      var viewGame = document.getElementById('viewGame');
+      var confirmDialog = document.getElementById('confirmDialog');
+      var btnConfirmBack = document.getElementById('btnConfirmBack');
+      var btnCancelBack = document.getElementById('btnCancelBack');
 
       /* Cell element cache populated in buildBoard() */
       var cells = [];
@@ -474,48 +519,21 @@
         }
       }
 
-      /* Scoreboard + labels */
+      /* Scoreboard (only visible on the main menu) */
       function updateScoreboard() {
         scoreRedEl.textContent = scores.red;
         scoreYellowEl.textContent = scores.yellow;
         scoreDrawEl.textContent = scores.draw;
-        if (mode === 'bot') {
-          labelRedEl.textContent = 'Red (You)';
-          labelYellowEl.textContent = 'Yellow (Bot)';
-        } else {
-          labelRedEl.textContent = 'Red';
-          labelYellowEl.textContent = 'Yellow';
-        }
       }
 
-      function updateModeUI() {
-        if (mode === 'bot') {
-          btnVsBot.classList.add('active');
-          btnVsBot.classList.remove('outline');
-          btnVsHuman.classList.remove('active');
-          btnVsHuman.classList.add('outline');
-          difficultySelector.style.display = '';
-        } else {
-          btnVsHuman.classList.add('active');
-          btnVsHuman.classList.remove('outline');
-          btnVsBot.classList.remove('active');
-          btnVsBot.classList.add('outline');
-          difficultySelector.style.display = 'none';
-        }
-      }
-
-      function updateDifficultyUI() {
-        if (difficulty === 'easy') {
-          btnEasy.classList.add('active');
-          btnEasy.classList.remove('outline');
-          btnHard.classList.remove('active');
-          btnHard.classList.add('outline');
-        } else {
-          btnHard.classList.add('active');
-          btnHard.classList.remove('outline');
-          btnEasy.classList.remove('active');
-          btnEasy.classList.add('outline');
-        }
+      /* ===========================
+         View switching
+         =========================== */
+      function showView(name) {
+        viewMenu.classList.toggle('view-hidden', name !== 'menu');
+        viewDifficulty.classList.toggle('view-hidden', name !== 'difficulty');
+        viewGame.classList.toggle('view-hidden', name !== 'game');
+        if (name === 'menu') updateScoreboard();
       }
 
       function updateStatus() {
@@ -573,7 +591,17 @@
         updateColumnStates();
 
         /* Wait for drop animation to settle, then resolve consequences */
-        setTimeout(processAfterMove, 470);
+        scheduleInSession(processAfterMove, 470);
+      }
+
+      /* setTimeout wrapper that drops the callback if the game session
+         changed (user backed out, started a new game, etc.). */
+      function scheduleInSession(fn, ms) {
+        var s = sessionId;
+        setTimeout(function () {
+          if (s !== sessionId) return;
+          fn();
+        }, ms);
       }
 
       function processAfterMove() {
@@ -584,11 +612,13 @@
         /* 2) Clear any fully filled rows, then cascade (recheck for wins / clears) */
         var filled = getFilledRows(board);
         if (filled.length > 0) {
+          var s = sessionId;
           animateClearRows(filled, function () {
+            if (s !== sessionId) return;
             board = clearRowsFromBoard(board, filled);
             renderBoard();
             /* A cascade may have produced a new win or more full rows */
-            setTimeout(processAfterMove, 300);
+            scheduleInSession(processAfterMove, 300);
           });
           return;
         }
@@ -608,7 +638,7 @@
         if (mode === 'bot' && currentPlayer !== HUMAN_COLOR) {
           busy = true;
           updateColumnStates();
-          setTimeout(botMove, 500);
+          scheduleInSession(botMove, 500);
         }
       }
 
@@ -665,6 +695,7 @@
       }
 
       function newGame() {
+        sessionId++;
         board = createEmptyBoard();
         currentPlayer = 'red';
         gameOver = false;
@@ -679,7 +710,6 @@
         scores = { red: 0, yellow: 0, draw: 0 };
         updateScoreboard();
         saveState();
-        newGame();
       }
 
       /* ===========================
@@ -702,92 +732,70 @@
         return valid[Math.floor(Math.random() * valid.length)];
       }
 
-      /* Hard: take immediate wins, block opponent wins, otherwise score columns */
-      function botHard() {
-        var legal = [];
-        for (var c = 0; c < COLS; c++) if (canDrop(board, c)) legal.push(c);
-        if (!legal.length) return -1;
+      /* ---------------------------
+         Hard mode: negamax search with alpha-beta pruning,
+         center-first move ordering, iterative deepening
+         under a soft time budget, and cascade-aware
+         simulation (row clears can themselves create wins).
+         --------------------------- */
+      var WIN_SCORE = 1000000;
+      var SEARCH_TIME_BUDGET_MS = 900;
+      var MAX_SEARCH_DEPTH = 9;
+      /* Search center columns first — they cut more lines, so alpha-beta
+         prunes a lot more of the tree when the strong move is tried first. */
+      var MOVE_ORDER = [3, 2, 4, 1, 5, 0, 6];
 
-        /* 1) Winning move (considers row-clearing cascades) */
-        for (var i = 0; i < legal.length; i++) {
-          if (moveLeadsToWin(board, legal[i], BOT_COLOR)) return legal[i];
-        }
-        /* 2) Block the opponent's immediate win */
-        for (var j = 0; j < legal.length; j++) {
-          if (moveLeadsToWin(board, legal[j], HUMAN_COLOR)) return legal[j];
-        }
-        /* 3) Score each move: prefer the centre and pieces near the bot's own */
-        var best = -Infinity;
-        var bestCols = [];
-        for (var k = 0; k < legal.length; k++) {
-          var col = legal[k];
-          var score = evaluateMove(board, col, BOT_COLOR);
-          if (score > best) {
-            best = score;
-            bestCols = [col];
-          } else if (score === best) {
-            bestCols.push(col);
-          }
-        }
-        return bestCols[Math.floor(Math.random() * bestCols.length)];
+      function opponentOf(player) {
+        return player === 'red' ? 'yellow' : 'red';
       }
 
-      /* Simulate a move (including row clears) and return true if it results in a win. */
-      function moveLeadsToWin(b, col, player) {
-        var sim = cloneBoard(b);
-        dropPiece(sim, col, player);
-        if (checkWin(sim) && checkWin(sim).player === player) return true;
-        /* Cascade row-clears then re-check */
-        while (true) {
-          var filled = getFilledRows(sim);
-          if (!filled.length) break;
-          sim = clearRowsFromBoard(sim, filled);
-          var w = checkWin(sim);
-          if (w && w.player === player) return true;
+      function legalMovesOrdered(b) {
+        var moves = [];
+        for (var i = 0; i < MOVE_ORDER.length; i++) {
+          var c = MOVE_ORDER[i];
+          if (canDrop(b, c)) moves.push(c);
         }
-        return false;
+        return moves;
       }
 
-      /* Lightweight heuristic: centre preference + threat counting */
-      function evaluateMove(b, col, player) {
+      /* Apply a move plus any cascade of row clears. Returns
+         { board, winner }. winner is set if the dropping player
+         lines up four either before or after any clear step. */
+      function simulateMove(b, col, player) {
         var sim = cloneBoard(b);
         var r = dropPiece(sim, col, player);
-        if (r < 0) return -Infinity;
-
-        /* Apply row clears so the evaluation reflects the post-move board */
+        if (r < 0) return null;
+        var w = checkWin(sim);
+        if (w) return { board: sim, winner: w.player };
         while (true) {
           var filled = getFilledRows(sim);
           if (!filled.length) break;
           sim = clearRowsFromBoard(sim, filled);
+          w = checkWin(sim);
+          if (w) return { board: sim, winner: w.player };
         }
-
-        var score = 0;
-        /* Centre column preference: each bot piece closer to the middle scores more */
-        for (var rr = 0; rr < ROWS; rr++) {
-          for (var cc = 0; cc < COLS; cc++) {
-            if (sim[rr][cc] === player) {
-              score += 3 - Math.abs(cc - 3);
-            }
-          }
-        }
-
-        /* Count open 3-in-a-rows (threats) for the player */
-        score += countThrees(sim, player) * 5;
-        /* Penalise moves that give the opponent a 3-in-a-row */
-        score -= countThrees(sim, player === 'red' ? 'yellow' : 'red') * 6;
-        return score;
+        return { board: sim, winner: null };
       }
 
-      /* Count lines of length 4 that contain exactly 3 pieces of `player` and 1 empty. */
-      function countThrees(b, player) {
+      /* Count windows of 4 with `own` pieces of `player` and the rest empty.
+         Used as a weighted threat count. */
+      function evaluateBoard(b, player) {
+        var opp = opponentOf(player);
+        return scoreFor(b, player) - scoreFor(b, opp);
+      }
+
+      function scoreFor(b, player) {
         var dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
-        var total = 0;
+        var score = 0;
+        /* Center-column control is worth a flat bonus per piece. */
+        for (var rr = 0; rr < ROWS; rr++) {
+          if (b[rr][3] === player) score += 4;
+        }
         for (var r = 0; r < ROWS; r++) {
           for (var c = 0; c < COLS; c++) {
             for (var d = 0; d < dirs.length; d++) {
               var dr = dirs[d][0], dc = dirs[d][1];
-              var endR = r + dr * 3;
-              var endC = c + dc * 3;
+              var endR = r + dr * 3, endC = c + dc * 3;
               if (endR < 0 || endR >= ROWS || endC < 0 || endC >= COLS) continue;
               var own = 0, empty = 0;
               for (var i = 0; i < 4; i++) {
@@ -795,11 +803,127 @@
                 if (v === player) own++;
                 else if (!v) empty++;
               }
-              if (own === 3 && empty === 1) total++;
+              if (own + empty < 4) continue; /* mixed window — useless to either side */
+              if (own === 4) score += 100000;
+              else if (own === 3 && empty === 1) score += 50;
+              else if (own === 2 && empty === 2) score += 5;
+              else if (own === 1 && empty === 3) score += 1;
             }
           }
         }
-        return total;
+        return score;
+      }
+
+      /* Negamax framework: at every node, score the current position
+         from `player`'s perspective. Children are evaluated as
+         the negation of the opponent's best reply. Alpha-beta cuts
+         off branches that can't improve on the current bound. */
+      function negamax(b, depth, alpha, beta, player, deadline) {
+        if (Date.now() > deadline) return evaluateBoard(b, player); /* soft timeout */
+        if (depth === 0) return evaluateBoard(b, player);
+        if (isBoardFull(b)) return 0;
+
+        var legal = legalMovesOrdered(b);
+        if (!legal.length) return 0;
+
+        var best = -Infinity;
+        var opp = opponentOf(player);
+        for (var i = 0; i < legal.length; i++) {
+          var sim = simulateMove(b, legal[i], player);
+          if (!sim) continue;
+          var score;
+          if (sim.winner === player) {
+            /* Prefer faster wins / slower losses by encoding depth. */
+            score = WIN_SCORE - (MAX_SEARCH_DEPTH - depth);
+          } else if (sim.winner === opp) {
+            score = -(WIN_SCORE - (MAX_SEARCH_DEPTH - depth));
+          } else {
+            score = -negamax(sim.board, depth - 1, -beta, -alpha, opp, deadline);
+          }
+          if (score > best) best = score;
+          if (best > alpha) alpha = best;
+          if (alpha >= beta) break; /* beta cutoff */
+        }
+        return best;
+      }
+
+      /* Hard: iteratively deepen until the time budget is used up.
+         Among moves that score within EPSILON of the best, pick
+         randomly so the bot doesn't replay the same opening forever. */
+      function botHard() {
+        var rootMoves = legalMovesOrdered(board);
+        if (!rootMoves.length) return -1;
+
+        /* Forced-win shortcut: if any move wins outright now, take it. */
+        for (var w = 0; w < rootMoves.length; w++) {
+          var s = simulateMove(board, rootMoves[w], BOT_COLOR);
+          if (s && s.winner === BOT_COLOR) return rootMoves[w];
+        }
+
+        var deadline = Date.now() + SEARCH_TIME_BUDGET_MS;
+        var bestScores = rootMoves.map(function () { return 0; });
+        var completedDepth = 0;
+
+        for (var depth = 2; depth <= MAX_SEARCH_DEPTH; depth++) {
+          var iterScores = new Array(rootMoves.length);
+          var alpha = -Infinity;
+          var beta = Infinity;
+          var timedOut = false;
+
+          for (var i = 0; i < rootMoves.length; i++) {
+            if (Date.now() > deadline && i > 0) { timedOut = true; break; }
+            var sim = simulateMove(board, rootMoves[i], BOT_COLOR);
+            var score;
+            if (!sim) score = -Infinity;
+            else if (sim.winner === BOT_COLOR) score = WIN_SCORE;
+            else if (sim.winner === HUMAN_COLOR) score = -WIN_SCORE;
+            else score = -negamax(sim.board, depth - 1, -beta, -alpha, HUMAN_COLOR, deadline);
+            iterScores[i] = score;
+            if (score > alpha) alpha = score;
+          }
+
+          if (timedOut) break;
+          bestScores = iterScores;
+          completedDepth = depth;
+
+          /* Stop early if a forced result is already known. */
+          var maxSeen = -Infinity;
+          for (var m = 0; m < bestScores.length; m++) {
+            if (bestScores[m] > maxSeen) maxSeen = bestScores[m];
+          }
+          if (maxSeen >= WIN_SCORE - 1000) break;
+          if (maxSeen <= -(WIN_SCORE - 1000)) break;
+        }
+
+        /* Pick among near-best moves with a small epsilon so opening play varies. */
+        var topScore = -Infinity;
+        for (var n = 0; n < bestScores.length; n++) {
+          if (bestScores[n] > topScore) topScore = bestScores[n];
+        }
+        var EPSILON = Math.abs(topScore) >= WIN_SCORE - 1000 ? 0 : 6;
+        var candidates = [];
+        for (var p = 0; p < rootMoves.length; p++) {
+          if (bestScores[p] >= topScore - EPSILON) candidates.push(rootMoves[p]);
+        }
+        if (!candidates.length) candidates = rootMoves.slice(0, 1);
+        return candidates[Math.floor(Math.random() * candidates.length)];
+      }
+
+      /* ===========================
+         Navigation
+         =========================== */
+      function startGame() {
+        saveState();
+        showView('game');
+        newGame();
+      }
+
+      function backToMenu() {
+        /* Bump the session so any pending bot/animation timer is dropped */
+        sessionId++;
+        gameOver = true;
+        busy = false;
+        showView('menu');
       }
 
       /* ===========================
@@ -807,42 +931,53 @@
          =========================== */
       btnVsBot.addEventListener('click', function () {
         mode = 'bot';
-        updateModeUI();
-        updateScoreboard();
-        saveState();
-        newGame();
+        showView('difficulty');
       });
       btnVsHuman.addEventListener('click', function () {
         mode = 'human';
-        updateModeUI();
-        updateScoreboard();
-        saveState();
-        newGame();
+        startGame();
       });
       btnEasy.addEventListener('click', function () {
         difficulty = 'easy';
-        updateDifficultyUI();
-        saveState();
-        newGame();
+        startGame();
       });
       btnHard.addEventListener('click', function () {
         difficulty = 'hard';
-        updateDifficultyUI();
-        saveState();
-        newGame();
+        startGame();
+      });
+      btnDifficultyBack.addEventListener('click', function () {
+        showView('menu');
       });
       btnNewGame.addEventListener('click', newGame);
       btnResetScores.addEventListener('click', resetScores);
+
+      /* Back from game → confirm before abandoning */
+      btnBack.addEventListener('click', function () {
+        /* Skip the confirm if the game is already finished */
+        if (gameOver) { backToMenu(); return; }
+        if (typeof confirmDialog.showModal === 'function') {
+          confirmDialog.showModal();
+        } else if (window.confirm('End the current game and return to the main menu?')) {
+          backToMenu();
+        }
+      });
+      btnConfirmBack.addEventListener('click', function () {
+        confirmDialog.close();
+        backToMenu();
+      });
+      btnCancelBack.addEventListener('click', function () {
+        confirmDialog.close();
+      });
 
       /* ===========================
          Initialize
          =========================== */
       loadState();
       buildBoard();
-      updateModeUI();
-      updateDifficultyUI();
       updateScoreboard();
-      newGame();
+      /* Start on the main menu — no game in progress yet */
+      gameOver = true;
+      showView('menu');
     </script>
   </body>
 </html>
