@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#574747" />
+    <title>Fridrich-Methode</title>
+    <link rel="manifest" href="../manifest.json" />
+    <link rel="apple-touch-icon" href="../icons/icon-192.png" />
+    <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css" />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+    <link rel="stylesheet" href="../style.css" />
+    <style>
+      /* Lesson text keeps a stable height so controls don't jump */
+      .lesson-text {
+        min-height: 5.5em;
+      }
+
+      /* 3D scene: --s is the size of one small cube */
+      .scene {
+        --s: clamp(40px, 15vw, 64px);
+        position: relative;
+        width: 100%;
+        height: calc(var(--s) * 5.2);
+        perspective: calc(var(--s) * 16);
+        touch-action: none;
+        cursor: grab;
+        user-select: none;
+      }
+
+      .cube {
+        position: absolute;
+        inset: 0;
+        transform-style: preserve-3d;
+      }
+
+      .cubie,
+      .face {
+        position: absolute;
+        width: var(--s);
+        height: var(--s);
+        transform-style: preserve-3d;
+      }
+
+      .cubie {
+        left: 50%;
+        top: 50%;
+        margin-left: calc(var(--s) / -2);
+        margin-top: calc(var(--s) / -2);
+      }
+
+      /* Cube colors are content (the puzzle itself), not page styling */
+      .face {
+        background: #111;
+      }
+
+      .sticker {
+        position: absolute;
+        inset: 6%;
+        border-radius: 12%;
+      }
+
+      /* Move tokens of the current algorithm */
+      .alg {
+        min-height: 2.2em;
+      }
+
+      .controls button {
+        min-width: 3.2em;
+      }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <main class="container">
+      <div class="header-row mb-2">
+        <h1>Fridrich-Methode</h1>
+        <span class="badge" id="counter">1 / 1</span>
+      </div>
+      <progress id="progress" value="1" max="1"></progress>
+
+      <!-- Current lesson -->
+      <section>
+        <h2 id="lesson-title"></h2>
+        <div class="lesson-text" id="lesson-text"></div>
+      </section>
+
+      <!-- Cube -->
+      <div class="scene" id="scene">
+        <div class="cube" id="cube"></div>
+      </div>
+      <p class="text-center text-lighter"><small>Zieh am Würfel, um ihn zu drehen.</small></p>
+
+      <!-- Algorithm player (hidden for lessons without moves) -->
+      <section id="player">
+        <p class="text-center mb-2"><strong id="step-label">&nbsp;</strong></p>
+        <div class="flex flex-wrap gap-sm justify-center alg" id="alg"></div>
+        <p class="text-center text-light" id="move-caption">&nbsp;</p>
+        <div class="flex gap-sm justify-center controls">
+          <button class="outline" id="btn-restart" title="Von vorne" aria-label="Von vorne">⟲</button>
+          <button class="outline" id="btn-back" title="Ein Zug zurück" aria-label="Ein Zug zurück">◀</button>
+          <button id="btn-play" title="Abspielen" aria-label="Abspielen">▶</button>
+          <button class="outline" id="btn-next" title="Ein Zug vor" aria-label="Ein Zug vor">▶|</button>
+        </div>
+        <p class="text-center mt-2">
+          <label><input type="checkbox" role="switch" id="slow" /> Langsam</label>
+        </p>
+      </section>
+
+      <!-- Lesson navigation -->
+      <div class="flex gap-md justify-between mt-4">
+        <button class="outline" id="btn-prev-lesson">← Zurück</button>
+        <button id="btn-next-lesson">Weiter →</button>
+      </div>
+
+      <!-- Glossary -->
+      <details class="mt-6">
+        <summary>Begriffe</summary>
+        <dl>
+          <dt>Mittelstein</dt>
+          <dd>Die Mitte einer Seite. Bewegt sich nie.</dd>
+          <dt>Kante</dt>
+          <dd>Stein mit 2 Farben. Es gibt 12.</dd>
+          <dt>Ecke</dt>
+          <dd>Stein mit 3 Farben. Es gibt 8.</dd>
+          <dt>Ebene</dt>
+          <dd>Eine Schicht aus 9 Steinen. Der Würfel hat 3 übereinander.</dd>
+          <dt>Zug</dt>
+          <dd>Eine Drehung einer Seite, z. B. R.</dd>
+          <dt>Algorithmus</dt>
+          <dd>Eine feste Folge von Zügen. Man lernt sie auswendig.</dd>
+          <dt>CFOP</dt>
+          <dd>Anderer Name für die Fridrich-Methode: Cross, F2L, OLL, PLL.</dd>
+          <dt>Kreuz (Cross)</dt>
+          <dd>Die 4 weißen Kanten unten, passend zu den Seiten.</dd>
+          <dt>F2L</dt>
+          <dd>First 2 Layers. Die unteren 2 Ebenen.</dd>
+          <dt>Paar</dt>
+          <dd>Eine Ecke und eine Kante, die zusammengehören.</dd>
+          <dt>Slot</dt>
+          <dd>Der Platz für ein Paar. Es gibt 4 Slots.</dd>
+          <dt>OLL</dt>
+          <dd>Orient Last Layer. Oben alles gelb machen.</dd>
+          <dt>PLL</dt>
+          <dd>Permute Last Layer. Oben alle Steine an ihren Platz bringen.</dd>
+        </dl>
+      </details>
+    </main>
+
+    <script>
+      /* ===== Lessons =====
+         setup: moves applied instantly before the lesson starts.
+         steps: groups of moves that the player animates, each with a label.
+         solve: if true, the inverse of all steps is added to the setup,
+                so playing the steps solves the shown case.
+         mask:  which stickers keep their color (others turn gray). */
+      const LESSONS = [
+        {
+          title: "Der Würfel",
+          text: "<p>Der Würfel hat <strong>6 Seiten</strong>. Jede Seite hat eine Farbe.</p><p>Wir halten ihn immer so: <strong>Gelb oben, Grün vorne</strong>.</p>",
+          mask: "all",
+        },
+        {
+          title: "Mittelsteine",
+          text: "<p>Die <strong>Mittelsteine</strong> bewegen sich nie.</p><p>Sie zeigen, welche Farbe eine Seite am Ende hat.</p>",
+          mask: "centers",
+        },
+        {
+          title: "Kanten",
+          text: "<p><strong>Kanten</strong> haben 2 Farben.</p><p>Es gibt 12 Kanten.</p>",
+          mask: "edges",
+        },
+        {
+          title: "Ecken",
+          text: "<p><strong>Ecken</strong> haben 3 Farben.</p><p>Es gibt 8 Ecken.</p>",
+          mask: "corners",
+        },
+        {
+          title: "Züge",
+          text: "<p>Jede Seite hat einen Buchstaben: <strong>R</strong> rechts, <strong>L</strong> links, <strong>U</strong> oben, <strong>D</strong> unten, <strong>F</strong> vorne, <strong>B</strong> hinten.</p><p>Ein Buchstabe = eine Vierteldrehung <strong>im Uhrzeigersinn</strong>. Schau dafür direkt auf diese Seite.</p>",
+          mask: "all",
+          steps: [{ label: "Probier es aus", moves: "R U F L D B" }],
+        },
+        {
+          title: "Strich und 2",
+          text: "<p><strong>R'</strong> (mit Strich) = gegen den Uhrzeigersinn.</p><p><strong>R2</strong> = zweimal drehen.</p>",
+          mask: "all",
+          steps: [
+            { label: "R und zurück", moves: "R R'" },
+            { label: "Zweimal", moves: "R2" },
+          ],
+        },
+        {
+          title: "Der Plan",
+          text: "<p>Die Fridrich-Methode hat <strong>4 Schritte</strong>:</p><ol><li>Kreuz</li><li>F2L</li><li>OLL</li><li>PLL</li></ol><p>Darum heißt sie auch <strong>CFOP</strong>.</p>",
+          mask: "all",
+          setup: "R U F' L2 D B' R2 U' F2 L D2 B",
+        },
+        {
+          title: "1. Kreuz",
+          text: "<p>Baue unten ein <strong>weißes Kreuz</strong>.</p><p>Jede Kante muss auch zur <strong>Mitte daneben</strong> passen.</p>",
+          mask: "cross",
+          solve: true,
+          steps: [
+            { label: "Kante über ihre Mitte drehen", moves: "U'" },
+            { label: "Runter drehen", moves: "F2" },
+          ],
+        },
+        {
+          title: "Kreuz: Kante falsch herum",
+          text: "<p>Manchmal zeigt Weiß zur Seite.</p><p>Dann brauchst du ein paar Züge mehr.</p>",
+          mask: "cross",
+          solve: true,
+          steps: [
+            { label: "Kante zur Seite schieben", moves: "U' R'" },
+            { label: "Einsetzen", moves: "F" },
+            { label: "Rechts reparieren", moves: "R" },
+          ],
+        },
+        {
+          title: "2. F2L",
+          text: "<p><strong>F2L</strong> = die unteren 2 Ebenen.</p><p>Eine Ecke und ihre Kante sind ein <strong>Paar</strong>. Das Paar kommt in seinen <strong>Slot</strong>.</p>",
+          mask: "f2l",
+          solve: true,
+          steps: [
+            { label: "Slot nach oben holen", moves: "U R" },
+            { label: "Paar reinsetzen", moves: "U' R'" },
+          ],
+        },
+        {
+          title: "F2L: Paar bilden",
+          text: "<p>Oft liegen Ecke und Kante getrennt.</p><p>Dann erst das <strong>Paar bilden</strong>, danach einsetzen.</p>",
+          mask: "f2l",
+          solve: true,
+          steps: [
+            { label: "Paar bilden", moves: "R U2 R'" },
+            { label: "Paar einsetzen", moves: "U' R U R'" },
+          ],
+        },
+        {
+          title: "F2L: alle Slots",
+          text: "<p>Es gibt <strong>4 Slots</strong>. Wiederhole das für jeden.</p><p>Danach sind die unteren 2 Ebenen fertig.</p>",
+          mask: "f2l",
+        },
+        {
+          title: "3. OLL: gelbes Kreuz",
+          text: "<p><strong>OLL</strong> = oben alles gelb machen.</p><p>Zuerst das <strong>gelbe Kreuz</strong>. Halte die gelbe Linie waagerecht.</p>",
+          mask: "oll",
+          setup: "R U2 R' U' R U' R'",
+          solve: true,
+          steps: [{ label: "Kreuz machen", moves: "F R U R' U' F'" }],
+        },
+        {
+          title: "OLL: gelbe Ecken",
+          text: "<p>Jetzt die <strong>Ecken gelb</strong> machen.</p><p>Dieser Algorithmus heißt <strong>Sune</strong>.</p>",
+          mask: "oll",
+          solve: true,
+          steps: [{ label: "Sune", moves: "R U R' U R U2 R'" }],
+        },
+        {
+          title: "4. PLL: Kanten tauschen",
+          text: "<p><strong>PLL</strong> = oben alle Steine an ihren Platz. Oben bleibt gelb.</p><p>Hier tauschen <strong>3 Kanten</strong> im Kreis.</p>",
+          mask: "all",
+          setup: "R U R' U' R' F R2 U' R' U' R U R' F'",
+          solve: true,
+          steps: [
+            { label: "U-Perm", moves: "R U' R U R U R U' R' U' R2" },
+          ],
+        },
+        {
+          title: "PLL: Ecken tauschen",
+          text: "<p>Jetzt tauschen <strong>2 Ecken</strong> (und 2 Kanten).</p><p>Dieser Algorithmus heißt <strong>T-Perm</strong>.</p>",
+          mask: "all",
+          solve: true,
+          steps: [
+            { label: "T-Perm", moves: "R U R' U' R' F R2 U' R' U' R U R' F'" },
+          ],
+        },
+        {
+          title: "Geschafft!",
+          text: "<p>Das ist die Fridrich-Methode.</p><p>Tipp: <strong>Übe einen Schritt nach dem anderen</strong>. Fang mit dem Kreuz an.</p>",
+          mask: "all",
+        },
+      ];
+
+      /* ===== Cube model =====
+         Coordinates: x right, y up, z front. Each sticker (facelet) has a
+         cubie position and an outward normal. The state stores, for every
+         facelet slot, which home facelet currently sits there. */
+      const COLORS = { U: "#ffd500", D: "#ffffff", F: "#009b48", B: "#0046ad", R: "#ff5800", L: "#b71234" };
+      const GRAY = "#4a4a4a";
+
+      const FACELETS = [];
+      const FACELET_INDEX = new Map();
+      for (let x = -1; x <= 1; x++)
+        for (let y = -1; y <= 1; y++)
+          for (let z = -1; z <= 1; z++) {
+            const pos = [x, y, z];
+            for (let a = 0; a < 3; a++) {
+              if (pos[a] === 0) continue;
+              const normal = [0, 0, 0];
+              normal[a] = pos[a];
+              FACELET_INDEX.set(key(pos, normal), FACELETS.length);
+              FACELETS.push({ pos, normal });
+            }
+          }
+
+      function key(pos, normal) {
+        return pos.join(",") + "|" + normal.join(",");
+      }
+
+      // Face letter a normal points to
+      function faceOf(n) {
+        if (n[1] === 1) return "U";
+        if (n[1] === -1) return "D";
+        if (n[2] === 1) return "F";
+        if (n[2] === -1) return "B";
+        if (n[0] === 1) return "R";
+        return "L";
+      }
+
+      // Number of non-zero coordinates: 1 = center, 2 = edge, 3 = corner
+      function pieceType(pos) {
+        return pos.filter((c) => c !== 0).length;
+      }
+
+      // Face moves: rotation axis, layer and turn sign (clockwise = -1 around the outward axis)
+      const MOVES = {
+        R: { axis: 0, layer: 1, sign: -1 },
+        L: { axis: 0, layer: -1, sign: 1 },
+        U: { axis: 1, layer: 1, sign: -1 },
+        D: { axis: 1, layer: -1, sign: 1 },
+        F: { axis: 2, layer: 1, sign: -1 },
+        B: { axis: 2, layer: -1, sign: 1 },
+      };
+
+      // Rotate an integer vector by one +90° step around an axis
+      function rot90(v, axis) {
+        const [x, y, z] = v;
+        if (axis === 0) return [x, -z, y];
+        if (axis === 1) return [z, y, -x];
+        return [-y, x, z];
+      }
+
+      function rotate(v, axis, quarters) {
+        let r = v;
+        for (let i = 0; i < ((quarters % 4) + 4) % 4; i++) r = rot90(r, axis);
+        return r;
+      }
+
+      // Parse "R'", "U2", "F" into face and signed quarter turns
+      function parseMove(token) {
+        const face = token[0];
+        const amount = token.endsWith("2") ? 2 : token.endsWith("'") ? -1 : 1;
+        return { face, quarters: MOVES[face].sign * amount, amount };
+      }
+
+      function invertMove(token) {
+        if (token.endsWith("2")) return token;
+        if (token.endsWith("'")) return token[0];
+        return token + "'";
+      }
+
+      function splitMoves(str) {
+        return str ? str.trim().split(/\s+/) : [];
+      }
+
+      function applyMove(state, token) {
+        const { face, quarters } = parseMove(token);
+        const { axis, layer } = MOVES[face];
+        const next = state.slice();
+        FACELETS.forEach((f, i) => {
+          if (f.pos[axis] !== layer) return;
+          const j = FACELET_INDEX.get(key(rotate(f.pos, axis, quarters), rotate(f.normal, axis, quarters)));
+          next[j] = state[i];
+        });
+        return next;
+      }
+
+      function solvedState() {
+        return FACELETS.map((_, i) => i);
+      }
+
+      /* ===== Masks =====
+         Decide per home facelet whether its color is shown. */
+      const MASKS = {
+        all: () => true,
+        centers: (f) => pieceType(f.pos) === 1,
+        edges: (f) => pieceType(f.pos) === 2,
+        corners: (f) => pieceType(f.pos) === 3,
+        cross: (f) => pieceType(f.pos) === 1 || (pieceType(f.pos) === 2 && f.pos[1] === -1),
+        f2l: (f) => pieceType(f.pos) === 1 || f.pos[1] <= 0,
+        oll: (f) => pieceType(f.pos) === 1 || f.pos[1] <= 0 || f.normal[1] === 1,
+      };
+
+      /* ===== Rendering =====
+         CSS space has y pointing down, so world y is flipped. */
+      const scene = document.getElementById("scene");
+      const cubeEl = document.getElementById("cube");
+      const FACE_TRANSFORMS = [
+        { n: [1, 0, 0], t: "rotateY(90deg)" },
+        { n: [-1, 0, 0], t: "rotateY(-90deg)" },
+        { n: [0, 1, 0], t: "rotateX(90deg)" },
+        { n: [0, -1, 0], t: "rotateX(-90deg)" },
+        { n: [0, 0, 1], t: "" },
+        { n: [0, 0, -1], t: "rotateY(180deg)" },
+      ];
+
+      const cubies = []; // { el, pos }
+      const stickerEls = new Array(FACELETS.length);
+
+      for (let x = -1; x <= 1; x++)
+        for (let y = -1; y <= 1; y++)
+          for (let z = -1; z <= 1; z++) {
+            if (!x && !y && !z) continue;
+            const pos = [x, y, z];
+            const el = document.createElement("div");
+            el.className = "cubie";
+            FACE_TRANSFORMS.forEach(({ n, t }) => {
+              const face = document.createElement("div");
+              face.className = "face";
+              face.style.transform = `${t} translateZ(calc(var(--s) / 2))`;
+              const idx = FACELET_INDEX.get(key(pos, n));
+              if (idx !== undefined) {
+                const sticker = document.createElement("div");
+                sticker.className = "sticker";
+                face.appendChild(sticker);
+                stickerEls[idx] = sticker;
+              }
+              el.appendChild(face);
+            });
+            cubeEl.appendChild(el);
+            cubies.push({ el, pos });
+          }
+
+      function baseTransform(pos) {
+        return `translate3d(calc(var(--s) * ${pos[0]}), calc(var(--s) * ${-pos[1]}), calc(var(--s) * ${pos[2]}))`;
+      }
+
+      function resetCubieTransforms() {
+        cubies.forEach((c) => (c.el.style.transform = baseTransform(c.pos)));
+      }
+
+      let state = solvedState();
+      let mask = MASKS.all;
+
+      function renderColors() {
+        state.forEach((home, i) => {
+          const f = FACELETS[home];
+          stickerEls[i].style.background = mask(f) ? COLORS[faceOf(f.normal)] : GRAY;
+        });
+      }
+
+      /* ===== View rotation by dragging ===== */
+      const DEFAULT_VIEW = { pitch: -28, yaw: -38 };
+      let view = { ...DEFAULT_VIEW };
+      let drag = null;
+
+      function renderView() {
+        cubeEl.style.transform = `rotateX(${view.pitch}deg) rotateY(${view.yaw}deg)`;
+      }
+
+      scene.addEventListener("pointerdown", (e) => {
+        drag = { x: e.clientX, y: e.clientY };
+        scene.setPointerCapture(e.pointerId);
+      });
+      scene.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        view.yaw += (e.clientX - drag.x) * 0.5;
+        view.pitch = Math.max(-89, Math.min(89, view.pitch - (e.clientY - drag.y) * 0.5));
+        drag = { x: e.clientX, y: e.clientY };
+        renderView();
+      });
+      scene.addEventListener("pointerup", () => (drag = null));
+      scene.addEventListener("pointercancel", () => (drag = null));
+
+      /* ===== Move animation =====
+         Rotates the cubies of one layer, then commits the new state. */
+      function isSlow() {
+        return document.getElementById("slow").checked;
+      }
+
+      function animateMove(token) {
+        const { face, quarters, amount } = parseMove(token);
+        const { axis, layer } = MOVES[face];
+        const layerCubies = cubies.filter((c) => c.pos[axis] === layer);
+        const duration = (isSlow() ? 900 : 400) * (amount === 2 ? 1.5 : 1);
+        // CSS rotation for a world rotation: x and z flip sign because of the y flip
+        const cssFn = ["rotateX", "rotateY", "rotateZ"][axis];
+        const cssSign = axis === 1 ? 1 : -1;
+        const total = quarters * 90 * cssSign;
+
+        return new Promise((resolve) => {
+          const start = performance.now();
+          function frame(now) {
+            const t = Math.min(1, (now - start) / duration);
+            const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            layerCubies.forEach((c) => {
+              c.el.style.transform = `${cssFn}(${total * eased}deg) ${baseTransform(c.pos)}`;
+            });
+            if (t < 1) return requestAnimationFrame(frame);
+            state = applyMove(state, token);
+            resetCubieTransforms();
+            renderColors();
+            resolve();
+          }
+          requestAnimationFrame(frame);
+        });
+      }
+
+      /* ===== Move descriptions for the caption ===== */
+      const FACE_NAMES = { R: "rechts", L: "links", U: "oben", D: "unten", F: "vorne", B: "hinten" };
+
+      function describeMove(token) {
+        const { face, amount } = parseMove(token);
+        const how = amount === 2 ? "zweimal" : amount === -1 ? "gegen den Uhrzeigersinn" : "im Uhrzeigersinn";
+        return `${token} = ${FACE_NAMES[face]}, ${how}`;
+      }
+
+      /* ===== Player ===== */
+      const els = {
+        title: document.getElementById("lesson-title"),
+        text: document.getElementById("lesson-text"),
+        counter: document.getElementById("counter"),
+        progress: document.getElementById("progress"),
+        player: document.getElementById("player"),
+        stepLabel: document.getElementById("step-label"),
+        alg: document.getElementById("alg"),
+        caption: document.getElementById("move-caption"),
+        play: document.getElementById("btn-play"),
+        back: document.getElementById("btn-back"),
+        next: document.getElementById("btn-next"),
+        restart: document.getElementById("btn-restart"),
+        prevLesson: document.getElementById("btn-prev-lesson"),
+        nextLesson: document.getElementById("btn-next-lesson"),
+      };
+
+      const STORAGE_KEY = "fridrich:lesson";
+      let lessonIndex = 0;
+      let moves = []; // [{ token, step }]
+      let startState = solvedState();
+      let pos = 0; // number of moves applied
+      let busy = false;
+      let playing = false;
+
+      // Build the start state and move list for a lesson
+      function loadLesson(index) {
+        playing = false;
+        lessonIndex = index;
+        try {
+          localStorage.setItem(STORAGE_KEY, String(index));
+        } catch (e) {}
+
+        const lesson = LESSONS[index];
+        const steps = lesson.steps || [];
+        moves = steps.flatMap((s, i) => splitMoves(s.moves).map((token) => ({ token, step: i })));
+
+        let setup = splitMoves(lesson.setup);
+        if (lesson.solve) setup = setup.concat(moves.map((m) => invertMove(m.token)).reverse());
+        startState = setup.reduce(applyMove, solvedState());
+
+        mask = MASKS[lesson.mask] || MASKS.all;
+        els.title.textContent = lesson.title;
+        els.text.innerHTML = lesson.text;
+        els.counter.textContent = `${index + 1} / ${LESSONS.length}`;
+        els.progress.max = LESSONS.length;
+        els.progress.value = index + 1;
+        els.prevLesson.disabled = index === 0;
+        els.nextLesson.disabled = index === LESSONS.length - 1;
+        els.player.classList.toggle("hidden", moves.length === 0);
+
+        view = { ...DEFAULT_VIEW };
+        renderView();
+        restart();
+      }
+
+      function restart() {
+        playing = false;
+        state = startState.slice();
+        pos = 0;
+        renderColors();
+        renderPlayer();
+      }
+
+      // Show the move tokens with the next one marked
+      function renderPlayer() {
+        const lesson = LESSONS[lessonIndex];
+        els.alg.innerHTML = "";
+        moves.forEach((m, i) => {
+          const el = document.createElement(i === pos ? "mark" : "code");
+          el.textContent = m.token;
+          if (i < pos) el.className = "text-lighter";
+          els.alg.appendChild(el);
+        });
+        const current = moves[Math.min(pos, moves.length - 1)];
+        if (pos >= moves.length && moves.length) {
+          els.stepLabel.textContent = "Fertig ✓";
+        } else if (current) {
+          els.stepLabel.textContent = `${current.step + 1}. ${lesson.steps[current.step].label}`;
+        }
+        els.play.textContent = playing ? "❚❚" : "▶";
+        els.play.setAttribute("aria-label", playing ? "Pause" : "Abspielen");
+        els.back.disabled = pos === 0;
+        els.next.disabled = pos >= moves.length;
+      }
+
+      async function stepForward() {
+        if (busy || pos >= moves.length) return;
+        busy = true;
+        els.caption.textContent = describeMove(moves[pos].token);
+        await animateMove(moves[pos].token);
+        pos++;
+        busy = false;
+        renderPlayer();
+      }
+
+      async function stepBack() {
+        if (busy || pos === 0) return;
+        busy = true;
+        const token = invertMove(moves[pos - 1].token);
+        els.caption.textContent = `Zurück: ${describeMove(token)}`;
+        await animateMove(token);
+        pos--;
+        busy = false;
+        renderPlayer();
+      }
+
+      async function play() {
+        if (pos >= moves.length) restart();
+        playing = true;
+        renderPlayer();
+        while (playing && pos < moves.length) {
+          await stepForward();
+          await new Promise((r) => setTimeout(r, isSlow() ? 400 : 150));
+        }
+        playing = false;
+        renderPlayer();
+      }
+
+      els.play.addEventListener("click", () => {
+        if (playing) {
+          playing = false;
+          renderPlayer();
+        } else if (!busy) {
+          play();
+        }
+      });
+      els.next.addEventListener("click", () => {
+        playing = false;
+        stepForward();
+      });
+      els.back.addEventListener("click", () => {
+        playing = false;
+        stepBack();
+      });
+      els.restart.addEventListener("click", () => {
+        if (busy) return;
+        els.caption.innerHTML = "&nbsp;";
+        restart();
+      });
+      els.prevLesson.addEventListener("click", () => {
+        if (busy || lessonIndex === 0) return;
+        els.caption.innerHTML = "&nbsp;";
+        loadLesson(lessonIndex - 1);
+      });
+      els.nextLesson.addEventListener("click", () => {
+        if (busy || lessonIndex === LESSONS.length - 1) return;
+        els.caption.innerHTML = "&nbsp;";
+        loadLesson(lessonIndex + 1);
+      });
+
+      /* ===== Start ===== */
+      let saved = 0;
+      try {
+        saved = parseInt(localStorage.getItem(STORAGE_KEY), 10) || 0;
+      } catch (e) {}
+      resetCubieTransforms();
+      loadLesson(Math.min(Math.max(saved, 0), LESSONS.length - 1));
+    </script>
+  </body>
+</html>
