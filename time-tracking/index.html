@@ -169,6 +169,15 @@
         .load-more:hover {
             background: #e9ecef;
         }
+        .overtime-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+        }
+        .overtime-toggle input {
+            width: auto;
+        }
     </style>
 </head>
 <body data-theme="dark">
@@ -235,8 +244,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // Initialize state with displayLimit
+        // overtimeDays holds date keys (see groupByDate) of days without a target time
         let state = {
             timeSlots: [],
+            overtimeDays: [],
             displayLimit: 14
         };
         let currentChart = null; // Add this line to declare currentChart globally
@@ -625,15 +636,17 @@
                 const loadedState = JSON.parse(saved, reviver);
                 state = {
                     timeSlots: loadedState.timeSlots || [],
+                    overtimeDays: loadedState.overtimeDays || [],
                     displayLimit: 14  // Always reset to 14
                 };
             }
         }
 
-        // Modify saveToStorage to only save timeSlots
+        // Modify saveToStorage to only save timeSlots and overtimeDays
         function saveToStorage() {
             const dataToSave = {
-                timeSlots: state.timeSlots
+                timeSlots: state.timeSlots,
+                overtimeDays: state.overtimeDays
             };
             localStorage.setItem('timeTrackerData', JSON.stringify(dataToSave, replacer));
         }
@@ -688,6 +701,25 @@
             });
         }
 
+        // Target hours for a day: 0 on overtime days, else the regular 8 hours
+        function dayTarget(date) {
+            return state.overtimeDays.includes(date) ? 0 : 8;
+        }
+
+        // Flag or unflag a day as overtime
+        function toggleOvertime(date) {
+            if (state.overtimeDays.includes(date)) {
+                state.overtimeDays = state.overtimeDays.filter(d => d !== date);
+            } else {
+                state.overtimeDays.push(date);
+            }
+            saveToStorage();
+            batchDOMUpdates(() => {
+                renderTimeSlots();
+                updateStats();
+            });
+        }
+
         // Calculate time difference in hours
         function calculateHours(startDateTime, endDateTime) {
             const start = new Date(startDateTime);
@@ -734,12 +766,17 @@
                 const isOld = new Date(date) < sevenDaysAgo;
                 const totalHours = slots.reduce((sum, slot) =>
                     sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
-                const balance = totalHours - 8;
+                const isOvertime = state.overtimeDays.includes(date);
+                const balance = totalHours - dayTarget(date);
 
                 dayGroup.innerHTML = `
                     <div class="day-header" onclick="toggleDaySlots('${date}')">
                         <h3>${formatDate(date)}</h3>
                         <div>
+                            <label class="overtime-toggle" onclick="event.stopPropagation()">
+                                <input type="checkbox" ${isOvertime ? 'checked' : ''} onchange="toggleOvertime('${date}')">
+                                Overtime
+                            </label>
                             Total: ${totalHours.toFixed(2)} hrs
                             (${balance >= 0 ? '+' : ''}${balance.toFixed(2)} hrs)
                         </div>
@@ -826,7 +863,7 @@
         // Group time slots by date
         function groupByDate(slots) {
             return slots.reduce((groups, slot) => {
-                const date = slot.startDateTime.toISOString().split('T')[0];
+                const date = slotDate(slot);
                 if (!groups[date]) {
                     groups[date] = [];
                 }
@@ -861,11 +898,11 @@
             let totalHours = 0;
             let totalBalance = 0;
 
-            Object.values(groupedSlots).forEach(slots => {
+            Object.entries(groupedSlots).forEach(([date, slots]) => {
                 const dayHours = slots.reduce((sum, slot) =>
                     sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
                 totalHours += dayHours;
-                totalBalance += dayHours - 8;
+                totalBalance += dayHours - dayTarget(date);
             });
 
             const avgHours = totalDays > 0 ? totalHours / totalDays : 0;
@@ -891,8 +928,9 @@
             const data = Object.values(groupedByMonth).map(slots => {
                 const totalHours = slots.reduce((sum, slot) =>
                     sum + calculateHours(slot.startDateTime, slot.endDateTime), 0);
-                const totalDays = new Set(slots.map(slot => slot.startDateTime.toISOString().split('T')[0])).size;
-                return (totalHours - (totalDays * 8)) / totalDays;
+                const days = Object.keys(groupByDate(slots));
+                const totalTarget = days.reduce((sum, date) => sum + dayTarget(date), 0);
+                return (totalHours - totalTarget) / days.length;
             }).reverse();
 
             const ctx = document.getElementById('balanceGraph').getContext('2d');
@@ -928,14 +966,20 @@
             icon.classList.toggle('fa-chevron-up');
         }
 
-        // Export data to CSV
+        // Date key of a slot, as used by groupByDate and overtimeDays
+        function slotDate(slot) {
+            return slot.startDateTime.toISOString().split('T')[0];
+        }
+
+        // Export data to CSV; the Overtime column flags slots on overtime days
         function exportData() {
             const csv = [
-                ['Start Timestamp', 'End Timestamp', 'Hours'],
+                ['Start Timestamp', 'End Timestamp', 'Hours', 'Overtime'],
                 ...state.timeSlots.map(slot => [
                     slot.startDateTime.toISOString(),
                     slot.endDateTime.toISOString(),
-                    calculateHours(slot.startDateTime, slot.endDateTime).toFixed(1)
+                    calculateHours(slot.startDateTime, slot.endDateTime).toFixed(1),
+                    state.overtimeDays.includes(slotDate(slot))
                 ])
             ].map(row => row.join(',')).join('\n');
 
@@ -952,7 +996,7 @@
             document.body.removeChild(a);
         }
 
-        // Import data from CSV
+        // Import data from CSV; files without an Overtime column import without flags
         function importData(event) {
             const file = event.target.files[0];
             if (file) {
@@ -961,9 +1005,16 @@
                     const text = e.target.result;
                     const rows = text.split('\n');
                     const newSlots = rows.slice(1).map(row => {
-                        const [startTimestamp, endTimestamp, hours] = row.split(',');
+                        const [startTimestamp, endTimestamp, hours, overtime] = row.split(',');
                         const startDateTime = new Date(startTimestamp);
                         const endDateTime = new Date(endTimestamp);
+
+                        if (overtime?.trim() === 'true') {
+                            const date = slotDate({ startDateTime });
+                            if (!state.overtimeDays.includes(date)) {
+                                state.overtimeDays.push(date);
+                            }
+                        }
 
                         return {
                             id: Date.now().toString() + Math.random(),
@@ -986,6 +1037,7 @@
         function clearData() {
             if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
                 state.timeSlots = [];
+                state.overtimeDays = [];
                 saveToStorage();
                 batchDOMUpdates(() => {
                     renderTimeSlots();
