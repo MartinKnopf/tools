@@ -32,6 +32,7 @@ The app is a time tracking tool, that allows the user to enter time slots that t
 
 ### Statistics
 - The app calculates the difference between the total time worked and the target time (8 hours) for each day.
+- The user can flag a day as "overtime". An overtime day has a target time of 0 hours, so all its time counts as balance.
 - The app counts the total number of days tracked.
 - The app calculates the average time worked per day.
 - The statistics are displayed at the top of the interface.
@@ -40,7 +41,7 @@ The app is a time tracking tool, that allows the user to enter time slots that t
 ### Data Persistence
 - The app stores the time slots and the statistics in the browser's local storage.
 - The app allows the user to clear all data and start fresh.
-- The app allows the user to download the data as a CSV file.
+- The app allows the user to download the data as a CSV file. The CSV file includes the overtime flag of each time slot's day.
 - The app allows the user to upload the data from a CSV file.
 
 ### Testing
