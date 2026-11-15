@@ -122,6 +122,9 @@
             <label for="log-time">Time</label>
             <input type="time" id="log-time" />
             <button id="log-entry-btn">Log</button>
+            <button data-variant="secondary" id="fill-to-today-btn">
+              Fill up to today
+            </button>
           </div>
         </div>
 
@@ -489,6 +492,46 @@
         renderHabits();
       }
 
+      // Add one entry per missing period from the last logged period up to the current one
+      function fillToToday() {
+        const habits = loadHabits();
+        const habit = habits.find(function (h) {
+          return h.id === currentHabitId;
+        });
+        if (!habit || !habit.entries || habit.entries.length === 0) return;
+
+        // Find the period key of the latest entry
+        var lastKey = habit.entries
+          .map(function (e) {
+            return getPeriodKey(e.date, habit.period);
+          })
+          .sort()
+          .pop();
+
+        // Walk back from the current period and collect all missing keys
+        var key = getPeriodKey(getTodayStr(), habit.period);
+        var missing = [];
+        while (key > lastKey) {
+          missing.push(key);
+          key = prevPeriodKey(key, habit.period);
+        }
+        if (missing.length === 0) return;
+
+        // Monthly keys are YYYY-MM, so date them on the first day of the month
+        var time = logTimeInput.value || new Date().toTimeString().slice(0, 5);
+        missing.reverse().forEach(function (k) {
+          habit.entries.push({
+            id: generateId(),
+            date: habit.period === "month" ? k + "-01" : k,
+            time: time,
+          });
+        });
+
+        saveHabits(habits);
+        renderEntries(habit);
+        renderHabits();
+      }
+
       // Remove an entry from a habit
       function removeEntry(habitId, entryId) {
         const habits = loadHabits();
@@ -589,6 +632,9 @@
         document
           .getElementById("log-entry-btn")
           .addEventListener("click", logEntry);
+        document
+          .getElementById("fill-to-today-btn")
+          .addEventListener("click", fillToToday);
         document
           .getElementById("delete-btn")
           .addEventListener("click", deleteHabit);
