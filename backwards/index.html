@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Backwards</title>
+    <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css" />
+    <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body data-theme="dark">
+    <main class="container">
+      <h1>Backwards</h1>
+
+      <!-- Controls -->
+      <section class="flex flex-wrap gap-md">
+        <button id="record-btn">Record</button>
+        <button id="play-btn" class="outline" disabled>Play</button>
+      </section>
+
+      <!-- Status line -->
+      <p id="status" class="text-light">Record something, then play it backwards.</p>
+    </main>
+
+    <script>
+      /* ========================================
+         State
+      ======================================== */
+      const recordBtn = document.getElementById("record-btn");
+      const playBtn = document.getElementById("play-btn");
+      const statusEl = document.getElementById("status");
+
+      let audioCtx = null; // created on first user gesture (needed on iOS)
+      let recorder = null; // active MediaRecorder while recording
+      let stream = null; // microphone stream while recording
+      let chunks = []; // recorded data chunks
+      let reversedBuffer = null; // decoded and reversed audio
+      let source = null; // currently playing source node
+
+      /* ========================================
+         Helpers
+      ======================================== */
+
+      // Create or resume the AudioContext inside a user gesture
+      function getAudioContext() {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        return audioCtx;
+      }
+
+      // Reverse the samples of every channel in place
+      function reverseBuffer(buffer) {
+        for (let c = 0; c < buffer.numberOfChannels; c++) {
+          buffer.getChannelData(c).reverse();
+        }
+        return buffer;
+      }
+
+      // Stop playback if something is playing
+      function stopPlayback() {
+        if (source) {
+          source.onended = null;
+          source.stop();
+          source = null;
+        }
+      }
+
+      /* ========================================
+         Recording
+      ======================================== */
+
+      // Start recording from the microphone
+      async function startRecording() {
+        getAudioContext();
+        stopPlayback();
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err) {
+          statusEl.textContent = "Microphone access denied.";
+          return;
+        }
+
+        chunks = [];
+        recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data);
+        };
+        recorder.onstop = processRecording;
+        recorder.start();
+
+        recordBtn.textContent = "Stop";
+        playBtn.disabled = true;
+        statusEl.textContent = "Recording...";
+      }
+
+      // Stop recording and release the microphone
+      function stopRecording() {
+        recorder.stop();
+        stream.getTracks().forEach((t) => t.stop());
+        recordBtn.textContent = "Record";
+        statusEl.textContent = "Processing...";
+      }
+
+      // Decode the recorded audio and reverse it
+      async function processRecording() {
+        const blob = new Blob(chunks, { type: recorder.mimeType });
+        recorder = null;
+        stream = null;
+        try {
+          const data = await blob.arrayBuffer();
+          const buffer = await getAudioContext().decodeAudioData(data);
+          reversedBuffer = reverseBuffer(buffer);
+          playBtn.disabled = false;
+          statusEl.textContent = `Recorded ${buffer.duration.toFixed(1)} s. Press Play.`;
+        } catch (err) {
+          statusEl.textContent = "Could not decode the recording.";
+        }
+      }
+
+      /* ========================================
+         Playback
+      ======================================== */
+
+      // Play the reversed recording from the start
+      function play() {
+        if (!reversedBuffer) return;
+        const ctx = getAudioContext();
+        stopPlayback();
+        source = ctx.createBufferSource();
+        source.buffer = reversedBuffer;
+        source.connect(ctx.destination);
+        source.onended = () => {
+          source = null;
+          statusEl.textContent = "Done.";
+        };
+        source.start();
+        statusEl.textContent = "Playing backwards...";
+      }
+
+      /* ========================================
+         Event Listeners
+      ======================================== */
+      recordBtn.addEventListener("click", () => {
+        if (recorder) stopRecording();
+        else startRecording();
+      });
+      playBtn.addEventListener("click", play);
+    </script>
+  </body>
+</html>
